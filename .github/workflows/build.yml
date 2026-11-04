@@ -1,0 +1,102 @@
+name: App Kairos TV (APK)
+
+# - ogni modifica compila un APK di prova (scheda Actions → Artifacts)
+# - un tag vX.Y.Z (Releases → Draft a new release) pubblica la versione:
+#   https://github.com/<utente>/kairos-tv/releases/latest/download/kairos-tv.apk  (link fisso per Downloader)
+#   https://github.com/<utente>/kairos-tv/releases/latest/download/kairos-tv.json (letto dal pannello: aggiornamento automatico)
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Copia l'interfaccia nell'app
+        env:
+          KAIROS_SERVER_URL: ${{ vars.KAIROS_SERVER_URL }}
+        run: |
+          mkdir -p app/src/main/assets/www
+          cp player/index.html app/src/main/assets/www/index.html
+          URL="${KAIROS_SERVER_URL:-https://kairos-panel.mariopiccolo8562.workers.dev}"; URL="${URL%/}"
+          UIV=$(sha256sum player/index.html | cut -c1-12)
+          printf 'window.KAIROS_SERVER = %s;\nwindow.KX_UI = "%s";\n' "$(jq -Rn --arg u "$URL" '$u')" "$UIV" > app/src/main/assets/www/config.js
+          echo "Pannello: $URL"
+
+      - name: Chiave di firma
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "KS_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "::error::Mancano i segreti della chiave di firma (vedi README): senza, gli aggiornamenti non si installerebbero sopra la versione precedente"
+            exit 1
+          else
+            echo "::warning::Nessuna chiave di firma: APK di prova firmato con una chiave temporanea"
+          fi
+
+      - name: Versione
+        run: |
+          if [[ "$GITHUB_REF" =~ ^refs/tags/v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            V="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}"
+            CODE=$(( BASH_REMATCH[1] * 10000 + BASH_REMATCH[2] * 100 + BASH_REMATCH[3] ))   # es. 1.2.3 → 10203
+          else
+            V="0.0.${GITHUB_RUN_NUMBER}"; CODE=${GITHUB_RUN_NUMBER}                          # build di prova
+          fi
+          echo "VERSION_NAME=$V" >> "$GITHUB_ENV"
+          echo "VERSION_CODE=$CODE" >> "$GITHUB_ENV"
+
+      - name: Compila APK
+        env:
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          TV_APP_NAME: ${{ vars.TV_APP_NAME }}
+          TV_APP_ID: ${{ vars.TV_APP_ID }}
+        run: gradle assembleRelease --no-daemon --stacktrace
+
+      - run: |
+          cp app/build/outputs/apk/release/app-release.apk kairos-tv.apk
+          ls -l kairos-tv.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kairos-tv-apk-${{ env.VERSION_NAME }}
+          path: kairos-tv.apk
+
+      - name: File per l'aggiornamento automatico
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/kairos-tv.apk"
+          jq -n --arg v "$VERSION_NAME" --argjson c "$VERSION_CODE" --arg u "$URL" --arg d "$(date -u +%FT%TZ)" \
+            '{version:$v, versionCode:$c, url:$u, date:$d}' > kairos-tv.json
+          cat kairos-tv.json
+
+      - name: Pubblica la release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            kairos-tv.apk
+            kairos-tv.json
+          make_latest: true
+          name: Kairos TV ${{ env.VERSION_NAME }}
+          generate_release_notes: true

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 320 180"><defs><linearGradient id="ta" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset=".55" stop-color="#3b82f6"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient>
+<radialGradient id="bg" cx=".3" cy=".45" r=".9"><stop offset="0" stop-color="#14215a"/><stop offset=".55" stop-color="#090f30"/><stop offset="1" stop-color="#03051a"/></radialGradient>
+<linearGradient id="wc" x1="0" y1="0" x2="0" y2="10" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff"/><stop offset=".55" stop-color="#e8f0ff"/><stop offset="1" stop-color="#7dd3fc"/></linearGradient><linearGradient id="ta" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#6366f1"/></linearGradient></defs>
+<rect width="320" height="180" fill="url(#bg)"/>
+<g transform="translate(14 38) scale(0.52)">
+<path d="M100 44 L74 14 M100 44 L126 14" stroke="url(#ta)" stroke-width="8" stroke-linecap="round" fill="none"/>
+<circle cx="74" cy="14" r="6" fill="#7dd3fc"/><circle cx="126" cy="14" r="6" fill="#a78bfa"/>
+<rect x="18" y="44" width="164" height="122" rx="30" fill="#0a1230" stroke="url(#ta)" stroke-width="10"/>
+<rect x="56" y="70" width="17" height="70" rx="3" fill="#fff"/>
+<path d="M106 66 L79 105 L106 144" stroke="#fff" stroke-width="16" stroke-linejoin="miter" stroke-miterlimit="4" fill="none"/>
+<path d="M113 82 L113 128 L150 105 Z" fill="url(#ta)" stroke="url(#ta)" stroke-width="5" stroke-linejoin="round"/>
+<path d="M76 184 H124" stroke="url(#ta)" stroke-width="8" stroke-linecap="round"/>
+</g>
+<g transform="translate(126 56) scale(3.4)" fill="none" stroke-linejoin="miter" stroke-miterlimit="2.3">
+<path d="M0.00 0 L0.00 10 M6.80 0 L2.50 5 L6.80 10 M9.90 10 L13.40 0 L16.90 10 M12.15 6.9 L14.65 6.9 M20.00 0 L20.00 10 M23.10 10 L23.10 0 L28.50 0 L30.10 1.6 L30.10 3.8000000000000003 L28.50 5.4 L23.10 5.4 M27.00 5.4 L30.10 8.6 L30.10 10 M34.80 0 L38.60 0 L40.20 1.6 L40.20 8.4 L38.60 10 L34.80 10 L33.20 8.4 L33.20 1.6 L34.80 0 M50.30 1.6 L48.70 0 L44.90 0 L43.30 1.6 L43.30 3.4 L44.90 5 L48.70 5 L50.30 6.6 L50.30 8.4 L48.70 10 L44.90 10 L43.30 8.4" stroke="#3b82f6" stroke-opacity=".45" stroke-width="2.4"/><path d="M0.00 0 L0.00 10 M6.80 0 L2.50 5 L6.80 10 M9.90 10 L13.40 0 L16.90 10 M12.15 6.9 L14.65 6.9 M20.00 0 L20.00 10 M23.10 10 L23.10 0 L28.50 0 L30.10 1.6 L30.10 3.8000000000000003 L28.50 5.4 L23.10 5.4 M27.00 5.4 L30.10 8.6 L30.10 10 M34.80 0 L38.60 0 L40.20 1.6 L40.20 8.4 L38.60 10 L34.80 10 L33.20 8.4 L33.20 1.6 L34.80 0 M50.30 1.6 L48.70 0 L44.90 0 L43.30 1.6 L43.30 3.4 L44.90 5 L48.70 5 L50.30 6.6 L50.30 8.4 L48.70 10 L44.90 10 L43.30 8.4" stroke="url(#wc)" stroke-width="1.45"/></g>
+<rect x="126" y="104" width="54" height="28" rx="7" fill="url(#ta)"/>
+<g transform="translate(137.88 109) scale(1.8)" fill="none" stroke="#fff" stroke-width="1.7" stroke-linejoin="miter"><path d="M0.00 0 L7.00 0 M3.50 0 L3.50 10 M9.40 0 L13.10 10 L16.80 0"/></g>
+</svg>

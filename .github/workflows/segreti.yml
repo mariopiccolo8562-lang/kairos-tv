@@ -1,0 +1,36 @@
+name: Prepara segreti
+
+# Da usare UNA volta sola, solo se non vuoi usare la stessa chiave di firma di Kairos Pro.
+# Crea una chiave di firma nuova e la allega all'esecuzione (file da scaricare e poi cancellare).
+on: workflow_dispatch
+
+jobs:
+  keys:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Chiave di firma
+        run: |
+          mkdir out
+          PASS=$(openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | head -c 28)
+          keytool -genkeypair -keystore out/release.jks -storetype PKCS12 -alias kairostv -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass "$PASS" -keypass "$PASS" -dname "CN=Kairos TV, O=Kairos, C=IT"
+          base64 -w0 out/release.jks > out/ANDROID_KEYSTORE_B64.txt
+          {
+            echo "Segreti di Kairos TV — crea questi 4 secret in Settings → Secrets and variables → Actions:"
+            echo
+            echo "ANDROID_KEYSTORE_B64      = il contenuto del file ANDROID_KEYSTORE_B64.txt"
+            echo "ANDROID_KEYSTORE_PASSWORD = $PASS"
+            echo "ANDROID_KEY_PASSWORD      = $PASS"
+            echo "ANDROID_KEY_ALIAS         = kairostv"
+            echo
+            echo "Conserva release.jks e questo file in un posto sicuro, poi elimina questa esecuzione da Actions."
+          } > out/LEGGIMI-SEGRETI.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: segreti-kairos-tv-DA-ELIMINARE
+          path: out/
+          retention-days: 1
