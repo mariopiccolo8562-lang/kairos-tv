@@ -189,7 +189,7 @@ open class BrowseActivity : BaseActivity() {
                 adapter.notifyDataSetChanged()
                 built = true
                 showSync()
-                if (!focusDone) { focusDone = true; rows.post { focusFirst() } }
+                if (!focusDone) { focusDone = true; rows.postDelayed({ if (!isFinishing) focusFirst() }, 150) }
             }
         }
     }

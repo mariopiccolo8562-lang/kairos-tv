@@ -8,7 +8,10 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_gravity="right"
-        android:scaleType="centerCrop" />
+        android:paddingTop="56dp"
+        android:paddingRight="@dimen/pad"
+        android:paddingBottom="12dp"
+        android:scaleType="fitEnd" />
     <View
         android:id="@+id/fadeL"
         android:layout_width="match_parent"
