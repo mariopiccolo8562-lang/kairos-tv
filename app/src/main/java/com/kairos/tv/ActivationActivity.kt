@@ -24,6 +24,13 @@ class ActivationActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // aggiornamento dalla versione 1 (web): si riprende il codice di prima, così il cliente resta attivo
+        if (Legacy.needed(this)) {
+            setContentView(R.layout.activity_activation)
+            findViewById<TextView>(R.id.status).text = "Aggiornamento in corso…"
+            Legacy.run(this) { recreate() }
+            return
+        }
         val cached = Panel.loadCached()
         if (cached != null && cached.active && !intent.getBooleanExtra("stay", false)) {
             // partenza immediata con l'ultimo stato; il pannello viene ricontrollato in background
@@ -62,7 +69,7 @@ class ActivationActivity : BaseActivity() {
 
     private fun tick() {
         App.main.removeCallbacks(poll)
-        if (routed || !::status.isInitialized) return
+        if (routed || !::status.isInitialized || Legacy.running) return
         if (Store.server.isEmpty()) {
             say("Server non configurato: l'app va compilata con l'indirizzo del pannello (KAIROS_SERVER_URL).", true)
             return

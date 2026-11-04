@@ -15,19 +15,47 @@ object Store {
     fun init(c: Context) {
         p = c.getSharedPreferences("lite", Context.MODE_PRIVATE)
         pos = c.getSharedPreferences("lite_pos", Context.MODE_PRIVATE)
-        if ((p.getString("code", "") ?: "").isEmpty() || (p.getString("secret", "") ?: "").isEmpty()) newIdentity()
+        if ((p.getString("code", "") ?: "").isEmpty() || (p.getString("secret", "") ?: "").isEmpty()) newIdentity(c)
     }
 
-    /** codice di attivazione (stesso formato di KAIROS TV: KXAB-7Q2M) + segreto legato al dispositivo */
-    private fun newIdentity() {
+    /**
+     * Codice di attivazione (formato KXAB-7Q2M) + segreto legato al dispositivo.
+     * Si ricavano dall'identificativo Android del dispositivo (ANDROID_ID, che da Android 8 vale solo per le app
+     * firmate con la nostra chiave): anche disinstallando e reinstallando l'app il codice resta lo STESSO,
+     * così il cliente non va ricollegato dal pannello. Se l'identificativo manca si usa un codice casuale.
+     */
+    private fun newIdentity(c: Context) {
         val a = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-        val r = SecureRandom()
-        fun ch() = a[r.nextInt(a.length)]
-        val code = "KX" + ch() + ch() + "-" + ch() + ch() + ch() + ch()
-        val b = ByteArray(32).also { r.nextBytes(it) }
-        val secret = Base64.encodeToString(b, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+        val aid = try { android.provider.Settings.Secure.getString(c.contentResolver, android.provider.Settings.Secure.ANDROID_ID) ?: "" } catch (_: Exception) { "" }
+        val stable = aid.length >= 8 && aid != "9774d56d682e549c" && aid.any { it != '0' } // 9774… = valore uguale per tutti su alcuni Android 2.x/box economici
+        val code: String
+        val secret: String
+        if (stable) {
+            val md = java.security.MessageDigest.getInstance("SHA-256")
+            val h = md.digest(("kairos-tv:code:" + c.packageName + ":" + aid).toByteArray())
+            fun ch(i: Int) = a[(h[i].toInt() and 0xFF) % a.length]
+            code = "KX" + ch(0) + ch(1) + "-" + ch(2) + ch(3) + ch(4) + ch(5)
+            val sb = java.security.MessageDigest.getInstance("SHA-256").digest(("kairos-tv:secret:" + c.packageName + ":" + aid + ":" + BuildConfig.APPLICATION_ID).toByteArray())
+            secret = Base64.encodeToString(sb, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+        } else {
+            val r = SecureRandom()
+            fun ch() = a[r.nextInt(a.length)]
+            code = "KX" + ch() + ch() + "-" + ch() + ch() + ch() + ch()
+            val b = ByteArray(32).also { r.nextBytes(it) }
+            secret = Base64.encodeToString(b, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+        }
         p.edit().putString("code", code).putString("secret", secret).apply()
     }
+
+    /** identità recuperata dalla versione precedente dell'app (vedi [Legacy]) */
+    fun adopt(code: String, secret: String) {
+        p.edit().putString("code", code).putString("secret", secret).putString("state", "").commit()
+    }
+
+    /** recupero dalla vecchia versione già tentato */
+    var legacyDone: Boolean
+        get() = p.getBoolean("legacyDone", false)
+        set(v) = p.edit().putBoolean("legacyDone", v).apply()
 
     val code: String get() = p.getString("code", "") ?: ""
     val secret: String get() = p.getString("secret", "") ?: ""
