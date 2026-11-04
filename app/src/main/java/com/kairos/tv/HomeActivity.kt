@@ -23,6 +23,7 @@ class HomeActivity : BrowseActivity() {
     /** INDIETRO sulla home: si chiede conferma prima di chiudere l'app */
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
+        if (backToTop()) return
         Ui.dialog(this, "Vuoi uscire?", "Kairos TV si chiude. Canali e preferiti restano pronti per la prossima volta.", "Esci", "Annulla") {
             finishAffinity()
         }

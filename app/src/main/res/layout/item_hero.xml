@@ -8,7 +8,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_gravity="right"
-        android:paddingTop="56dp"
+        android:paddingTop="4dp"
         android:paddingRight="@dimen/pad"
         android:paddingBottom="12dp"
         android:scaleType="fitEnd" />

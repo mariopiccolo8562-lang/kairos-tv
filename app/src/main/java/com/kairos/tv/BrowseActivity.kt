@@ -73,13 +73,18 @@ open class BrowseActivity : BaseActivity() {
 
         rows = findViewById(R.id.rows)
         rows.fast()
+        // la riga selezionata non finisce mai sotto la barra delle schede (che resta sopra, semitrasparente)
+        rows.setPadding(rows.paddingLeft, Ui.dp(this, 64), rows.paddingRight, rows.paddingBottom)
+        rows.clipChildren = false
         rows.setItemViewCacheSize(if (App.lite) 2 else 4)
         adapter.setHasStableIds(true)
         rows.adapter = adapter
 
         tabs()
         findViewById<View>(R.id.search).setOnClickListener { open(SearchActivity::class.java) }
-        findViewById<View>(R.id.avatar).setOnClickListener { open(SettingsActivity::class.java) }
+        val av = findViewById<TextView>(R.id.avatar)
+        av.setOnClickListener { open(SettingsActivity::class.java) }
+        av.setOnFocusChangeListener { v, has -> (v.background as? android.graphics.drawable.GradientDrawable)?.setStroke(if (has) Ui.dp(this, 3) else 0, Color.WHITE) }
         for (t in listOf("vod", "series")) vers[t] = Sync.ver(t)
         Sync.listen(syncL)
         build()
@@ -238,6 +243,20 @@ open class BrowseActivity : BaseActivity() {
         findViewById<View>(if (kind == "list") R.id.tabList else R.id.tabHome).requestFocus()
     }
 
+    /** in fondo alle righe INDIETRO riporta in cima; in cima chiude (la Home chiede conferma) */
+    protected fun backToTop(): Boolean {
+        val lm = rows.layoutManager as? LinearLayoutManager ?: return false
+        if (lm.findFirstVisibleItemPosition() <= 0 && !rows.canScrollVertically(-1)) return false
+        rows.scrollToPosition(0)
+        rows.postDelayed({ if (!isFinishing) focusFirst() }, 120)
+        return true
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        if (!backToTop()) super.onBackPressed()
+    }
+
     /* ---------------- azioni ---------------- */
     private fun openCard(c: Db.Card, autoplay: Boolean = false) {
         open(DetailActivity::class.java) { putExtra("table", c.table); putExtra("id", c.id); if (autoplay) putExtra("autoplay", true) }
@@ -286,7 +305,7 @@ open class BrowseActivity : BaseActivity() {
                 val h = HeroH(inf.inflate(R.layout.item_hero, p, false))
                 val sh = resources.displayMetrics.heightPixels
                 val sw = resources.displayMetrics.widthPixels
-                h.itemView.layoutParams.height = (sh * 0.62f).toInt()
+                h.itemView.layoutParams.height = (sh * 0.56f).toInt()
                 (h.img.layoutParams as ViewGroup.MarginLayoutParams).width = (sw * 0.66f).toInt()
                 for (b in listOf(h.play, h.info)) {
                     b.compoundDrawables[0]?.mutate()?.setColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN)
@@ -301,6 +320,9 @@ open class BrowseActivity : BaseActivity() {
             h.list.fast(horizontal = true)
             h.list.setRecycledViewPool(pool)
             h.list.adapter = h.cards
+            // la locandina selezionata si ingrandisce un poco: non deve essere tagliata sopra e sotto
+            h.list.clipChildren = false
+            (h.itemView as ViewGroup).clipChildren = false
             return h
         }
 
@@ -323,11 +345,11 @@ open class BrowseActivity : BaseActivity() {
         val c = hero
         if (c == null) {
             // niente titolo in evidenza (La mia lista, o liste non ancora caricate): solo lo spazio per le schede in alto
-            h.itemView.layoutParams.height = Ui.dp(this, 70)
+            h.itemView.layoutParams.height = Ui.dp(this, 6)
             for (v in listOf(h.img, h.kindT, h.title, h.metaT, h.plot, h.play, h.info)) v.visibility = View.GONE
             return
         }
-        h.itemView.layoutParams.height = (resources.displayMetrics.heightPixels * 0.62f).toInt()
+        h.itemView.layoutParams.height = (resources.displayMetrics.heightPixels * 0.56f).toInt()
         for (v in listOf(h.img, h.kindT, h.title, h.metaT, h.play, h.info)) v.visibility = View.VISIBLE
         h.kindT.text = if (c.table == "series") "SERIE TV" else "FILM"
         h.title.text = c.name
@@ -377,6 +399,9 @@ open class BrowseActivity : BaseActivity() {
                 h.itemView.findViewById<View>(R.id.box).clipToOutline = true
                 h.itemView.setOnClickListener { val o = h.recentItem() ?: return@setOnClickListener; Play.resume(this@BrowseActivity, o) }
                 h.itemView.setOnLongClickListener { val o = h.recentItem(); if (o != null) { Store.removeRecent(o.optString("id")); refreshDynamic() }; true }
+                h.itemView.setOnKeyListener { _, code, e ->
+                    e.action == KeyEvent.ACTION_DOWN && ((code == KeyEvent.KEYCODE_DPAD_RIGHT && h.bindingAdapterPosition >= itemCount - 1) || (code == KeyEvent.KEYCODE_DPAD_LEFT && h.bindingAdapterPosition == 0))
+                }
                 Ui.zoom(h.itemView, 1.06f)
                 return h
             }
@@ -391,7 +416,12 @@ open class BrowseActivity : BaseActivity() {
             }
             h.itemView.setOnLongClickListener { h.card()?.let { toggleFav(it) }; true }
             h.itemView.setOnKeyListener { _, code, e ->
-                if (code == KeyEvent.KEYCODE_MENU && e.action == KeyEvent.ACTION_UP) { h.card()?.let { toggleFav(it) }; true } else false
+                when {
+                    code == KeyEvent.KEYCODE_MENU && e.action == KeyEvent.ACTION_UP -> { h.card()?.let { toggleFav(it) }; true }
+                    e.action == KeyEvent.ACTION_DOWN && code == KeyEvent.KEYCODE_DPAD_RIGHT -> h.bindingAdapterPosition >= itemCount - 1
+                    e.action == KeyEvent.ACTION_DOWN && code == KeyEvent.KEYCODE_DPAD_LEFT -> h.bindingAdapterPosition == 0
+                    else -> false
+                }
             }
             Ui.zoom(h.itemView, 1.07f)
             return h
