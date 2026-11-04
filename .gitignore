@@ -8,5 +8,3 @@ build/
 app/build/
 local.properties
 .DS_Store
-# interfaccia copiata dal workflow
-app/src/main/assets/www/

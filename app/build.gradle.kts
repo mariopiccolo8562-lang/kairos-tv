@@ -5,19 +5,27 @@ plugins {
 
 fun env(name: String): String? = System.getenv(name)?.takeIf { it.isNotBlank() }
 val keystore = env("KS_PATH")?.let { file(it) }?.takeIf { it.exists() }
+// pannello Kairos (lo stesso di KAIROS TV); la variabile KAIROS_SERVER_URL del repository, se c'è, lo sostituisce
+val serverUrl = (env("KAIROS_SERVER_URL") ?: "https://kairos-panel.mariopiccolo8562.workers.dev").trimEnd('/').replace("\"", "")
+// aggiornamenti: direttamente dalle release di questo repository (Kairos TV è separata da Kairos Pro)
+val updateUrl = "https://github.com/" + (env("GITHUB_REPOSITORY") ?: "mariopiccolo8562-lang/kairos-tv") + "/releases/latest/download/kairos-tv.json"
 
 android {
     namespace = "com.kairos.tv"
     compileSdk = 35
 
     defaultConfig {
+        // app separata da Kairos Pro e Kairos Lite: si installa accanto, con aggiornamenti suoi
         applicationId = env("TV_APP_ID") ?: "com.kairos.tv"
+        // 22 = Android 5.1: Fire TV Stick di 1ª e 2ª generazione (Fire OS 5) comprese
         minSdk = 22
         targetSdk = 35
         versionCode = env("VERSION_CODE")?.toInt() ?: 1
         versionName = env("VERSION_NAME") ?: "1.0.0"
         resValue("string", "app_name", env("TV_APP_NAME") ?: "Kairos TV")
-        // Fire TV / Android TV / telefoni usano processori ARM: escludere x86 riduce molto l'APK
+        buildConfigField("String", "SERVER_URL", "\"$serverUrl\"")
+        buildConfigField("String", "UPDATE_URL", "\"$updateUrl\"")
+        // Fire TV / Android TV / telefoni sono ARM: niente x86, APK più piccolo
         ndk { abiFilters += listOf("armeabi-v7a", "arm64-v8a") }
     }
 
@@ -53,14 +61,14 @@ android {
 }
 
 dependencies {
-    implementation("androidx.activity:activity-ktx:1.9.3")
-    // player nativo
+    // poche librerie, tutte compatibili con Android 5.1
+    implementation("androidx.core:core:1.13.1")
+    implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("androidx.media3:media3-exoplayer:1.4.1")
     implementation("androidx.media3:media3-exoplayer-hls:1.4.1")
     implementation("androidx.media3:media3-ui:1.4.1")
-    // Kairos TV: solo ExoPlayer (niente VLC né OkHttp): APK molto più piccolo, più leggera sulle chiavette datate
-    // VPN WireGuard (libreria ufficiale). 1.0.20250531 = ultima con minSdk 21 (la 1.0.20260102 richiede
-    // Android 7+, stesso motore wireguard-go): così la VPN funziona anche su Fire TV con Fire OS 5
+    implementation("com.github.bumptech.glide:glide:4.16.0")
+    // 1.0.20250531 = ultima con minSdk 21 (stesso motore wireguard-go della versione successiva)
     implementation("com.wireguard.android:tunnel:1.0.20250531")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }

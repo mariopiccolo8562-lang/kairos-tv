@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kairos TV: colori stile Netflix (nero, rosso, testo bianco) -->
+<resources>
+    <color name="bg">#0B0B0B</color>
+    <color name="surface">#181818</color>
+    <color name="surface2">#242424</color>
+    <color name="surface3">#2F2F2F</color>
+    <color name="line">#333333</color>
+    <color name="text">#FFFFFF</color>
+    <color name="text2">#E5E5E5</color>
+    <color name="muted">#B3B3B3</color>
+    <color name="dim">#8C8C8C</color>
+    <color name="accent">#E50914</color>
+    <color name="on_accent">#FFFFFF</color>
+    <color name="on_accent_soft">#FFD9DB</color>
+    <color name="live">#E50914</color>
+    <color name="overlay">#E60B0B0B</color>
+    <color name="badge">#CC0B0B0B</color>
+</resources>

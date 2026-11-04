@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:padding="@dimen/pad">
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+            <ImageView
+                android:layout_width="@dimen/logo"
+                android:layout_height="@dimen/logo"
+                android:src="@drawable/ic_logo" />
+            <TextView
+                android:id="@+id/brand"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="12dp"
+                android:text="Kairos"
+                android:textColor="@color/text"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+        <View android:layout_width="1dp" android:layout_height="0dp" android:layout_weight="1" />
+        <TextView
+            android:id="@+id/hero"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Attiva la tua TV."
+            android:textColor="@color/text"
+            android:textSize="@dimen/hero"
+            android:textStyle="bold" />
+        <TextView
+            android:id="@+id/body"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:lineSpacingMultiplier="1.15"
+            android:maxWidth="440dp"
+            android:text="Comunica il codice al tuo rivenditore. Appena attiva l'abbonamento, l'app si sblocca da sola: non devi scrivere niente."
+            android:textColor="@color/muted"
+            android:textSize="@dimen/text_l" />
+        <View android:layout_width="1dp" android:layout_height="0dp" android:layout_weight="1" />
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+            <Button
+                android:id="@+id/privacy"
+                style="@style/Btn"
+                android:layout_width="wrap_content"
+                android:text="Privacy e condizioni" />
+            <TextView
+                android:id="@+id/version"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="14dp"
+                android:textColor="@color/dim"
+                android:textSize="@dimen/text_s" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="400dp"
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        android:scrollbars="none">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="vertical"
+            android:paddingBottom="@dimen/pad"
+            android:paddingRight="@dimen/pad"
+            android:paddingTop="@dimen/pad">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_panel"
+                android:orientation="vertical"
+                android:padding="24dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.12"
+                    android:text="CODICE DI ATTIVAZIONE"
+                    android:textColor="@color/muted"
+                    android:textSize="@dimen/text_s"
+                    android:textStyle="bold" />
+                <LinearLayout
+                    android:id="@+id/codeBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+                <TextView
+                    android:id="@+id/code"
+                    android:layout_width="match_parent"
+                    android:layout_height="84dp"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/bg_code"
+                    android:gravity="center"
+                    android:letterSpacing="0.08"
+                    android:singleLine="true"
+                    android:textColor="#FFFFFF"
+                    android:textSize="@dimen/code"
+                    android:textStyle="bold" />
+                </LinearLayout>
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+                    <View
+                        android:id="@+id/dot"
+                        android:layout_width="10dp"
+                        android:layout_height="10dp"
+                        android:background="@drawable/dot_accent" />
+                    <TextView
+                        android:id="@+id/status"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginLeft="10dp"
+                        android:layout_weight="1"
+                        android:text="Collegamento al server…"
+                        android:textColor="@color/text2"
+                        android:textSize="@dimen/text_m" />
+                </LinearLayout>
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="18dp"
+                    android:background="@color/line" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="Hai già un'altra TV attiva con Kairos?"
+                    android:textColor="@color/muted"
+                    android:textSize="@dimen/text_m" />
+                <Button
+                    android:id="@+id/link"
+                    style="@style/Btn.Primary"
+                    android:layout_width="match_parent"
+                    android:layout_marginTop="10dp"
+                    android:text="Collega con codice a 6 cifre" />
+                <Button
+                    android:id="@+id/retry"
+                    style="@style/Btn"
+                    android:layout_width="match_parent"
+                    android:layout_marginTop="10dp"
+                    android:text="Riprova adesso"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/row_h"
+    android:layout_marginBottom="4dp"
+    android:background="@drawable/bg_row_solid"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingLeft="12dp"
+    android:paddingRight="12dp">
+    <TextView
+        android:id="@+id/num"
+        android:layout_width="38dp"
+        android:layout_height="wrap_content"
+        android:singleLine="true"
+        android:textColor="@color/dim"
+        android:textSize="@dimen/text_s"
+        android:textStyle="bold" />
+    <FrameLayout
+        android:layout_width="38dp"
+        android:layout_height="38dp"
+        android:background="@drawable/bg_ph">
+        <TextView
+            android:id="@+id/initials"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:textColor="@color/muted"
+            android:textSize="@dimen/text_s"
+            android:textStyle="bold" />
+        <ImageView
+            android:id="@+id/logo"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="3dp"
+            android:scaleType="fitCenter" />
+    </FrameLayout>
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="12dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+        <TextView
+            android:id="@+id/name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:textColor="@color/text"
+            android:textSize="@dimen/text_m"
+            android:textStyle="bold" />
+        <TextView
+            android:id="@+id/now"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:textColor="@color/muted"
+            android:textSize="@dimen/text_s"
+            android:visibility="gone" />
+        <ProgressBar
+            android:id="@+id/bar"
+            style="@android:style/Widget.ProgressBar.Horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="3dp"
+            android:layout_marginTop="4dp"
+            android:max="100"
+            android:progressDrawable="@drawable/progress_thin"
+            android:visibility="gone" />
+    </LinearLayout>
+    <ImageView
+        android:id="@+id/fav"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:layout_marginLeft="10dp"
+        android:src="@drawable/ic_heart_fill"
+        android:tint="@color/accent"
+        android:visibility="gone" />
+</LinearLayout>

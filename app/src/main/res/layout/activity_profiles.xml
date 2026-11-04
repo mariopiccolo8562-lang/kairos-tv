@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="@dimen/pad">
+    <TextView
+        android:id="@+id/title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Chi guarda?"
+        android:textColor="@color/text"
+        android:textSize="@dimen/hero"
+        android:textStyle="bold" />
+    <TextView
+        android:id="@+id/hint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:textColor="@color/muted"
+        android:textSize="@dimen/text_m" />
+    <HorizontalScrollView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="28dp"
+        android:scrollbars="none">
+        <LinearLayout
+            android:id="@+id/row"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="8dp" />
+    </HorizontalScrollView>
+    <Button
+        android:id="@+id/manage"
+        style="@style/Btn"
+        android:layout_width="wrap_content"
+        android:layout_marginTop="28dp"
+        android:text="Gestisci profili" />
+</LinearLayout>

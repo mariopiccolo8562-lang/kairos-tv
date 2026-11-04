@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home / Film / Serie stile Netflix: riquadro grande in alto e righe di locandine -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg">
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rows"
+        style="@style/List"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:paddingBottom="40dp" />
+
+    <LinearLayout
+        android:id="@+id/topbar"
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:background="@drawable/fade_top"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingLeft="@dimen/pad"
+        android:paddingRight="@dimen/pad">
+        <ImageView
+            android:layout_width="@dimen/logo"
+            android:layout_height="@dimen/logo"
+            android:src="@drawable/ic_logo" />
+        <TextView android:id="@+id/tabHome" style="@style/Tab" android:layout_marginLeft="18dp" android:text="Home" />
+        <TextView android:id="@+id/tabFilm" style="@style/Tab" android:text="Film" />
+        <TextView android:id="@+id/tabSeries" style="@style/Tab" android:text="Serie TV" />
+        <TextView android:id="@+id/tabLive" style="@style/Tab" android:text="In diretta" />
+        <TextView android:id="@+id/tabList" style="@style/Tab" android:text="La mia lista" />
+        <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
+        <TextView
+            android:id="@+id/clock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginRight="14dp"
+            android:textColor="@color/text2"
+            android:textSize="@dimen/text_l"
+            android:textStyle="bold" />
+        <ImageButton
+            android:id="@+id/search"
+            style="@style/IconBtn"
+            android:contentDescription="Cerca"
+            android:src="@drawable/ic_search" />
+        <TextView
+            android:id="@+id/avatar"
+            android:layout_width="@dimen/icon_btn"
+            android:layout_height="@dimen/icon_btn"
+            android:layout_marginLeft="10dp"
+            android:background="@drawable/bg_icon_btn"
+            android:focusable="true"
+            android:gravity="center"
+            android:textColor="@color/on_accent"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/sync"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|right"
+        android:layout_margin="12dp"
+        android:background="@drawable/bg_badge"
+        android:paddingLeft="12dp"
+        android:paddingTop="6dp"
+        android:paddingRight="12dp"
+        android:paddingBottom="6dp"
+        android:textColor="@color/text2"
+        android:textSize="@dimen/text_s"
+        android:visibility="gone" />
+</FrameLayout>

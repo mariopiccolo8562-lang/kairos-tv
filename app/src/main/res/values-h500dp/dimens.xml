@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TV (960×540 dp) e tablet -->
+<resources>
+    <dimen name="pad">28dp</dimen>
+    <dimen name="gap">14dp</dimen>
+    <dimen name="topbar_h">44dp</dimen>
+    <dimen name="tile_title">32sp</dimen>
+    <dimen name="tile_sub">15sp</dimen>
+    <dimen name="tile_icon">48dp</dimen>
+    <dimen name="title">22sp</dimen>
+    <dimen name="text_l">17sp</dimen>
+    <dimen name="text_m">15sp</dimen>
+    <dimen name="text_s">13sp</dimen>
+    <dimen name="row_h">54dp</dimen>
+    <dimen name="cat_h">42dp</dimen>
+    <dimen name="cat_w">190dp</dimen>
+    <dimen name="preview_w">350dp</dimen>
+    <dimen name="preview_h">197dp</dimen>
+    <dimen name="poster_w">112dp</dimen>
+    <dimen name="poster_h">168dp</dimen>
+    <dimen name="recent_w">168dp</dimen>
+    <dimen name="recent_h">80dp</dimen>
+    <dimen name="ep_w">210dp</dimen>
+    <dimen name="ep_h">108dp</dimen>
+    <dimen name="btn_h">48dp</dimen>
+    <dimen name="icon_btn">44dp</dimen>
+    <dimen name="code">44sp</dimen>
+    <dimen name="hero">44sp</dimen>
+    <dimen name="logo">36dp</dimen>
+</resources>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- logo Kairos TV: schermo con antenne, K bianca e tasto play (stesso disegno dell'icona) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="40dp" android:height="40dp" android:viewportWidth="200" android:viewportHeight="200">
+    <path android:strokeColor="#38BDF8" android:strokeWidth="8" android:strokeLineCap="round" android:pathData="M100,44 L74,14 M100,44 L126,14" />
+    <path android:fillColor="#0A1230" android:strokeColor="#3B82F6" android:strokeWidth="10" android:pathData="M48,44 h104 a30,30 0 0 1 30,30 v62 a30,30 0 0 1 -30,30 h-104 a30,30 0 0 1 -30,-30 v-62 a30,30 0 0 1 30,-30 z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M59,70 h11 a3,3 0 0 1 3,3 v64 a3,3 0 0 1 -3,3 h-11 a3,3 0 0 1 -3,-3 v-64 a3,3 0 0 1 3,-3 z" />
+    <path android:strokeColor="#FFFFFF" android:strokeWidth="16" android:pathData="M106,66 L79,105 L106,144" />
+    <path android:fillColor="#22D3EE" android:pathData="M113,82 L113,128 L150,105 z" />
+    <path android:strokeColor="#3B82F6" android:strokeWidth="8" android:strokeLineCap="round" android:pathData="M76,184 H124" />
+</vector>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- telefoni e schermi bassi (in orizzontale) -->
+<resources>
+    <dimen name="pad">16dp</dimen>
+    <dimen name="gap">10dp</dimen>
+    <dimen name="topbar_h">40dp</dimen>
+    <dimen name="tile_title">22sp</dimen>
+    <dimen name="tile_sub">13sp</dimen>
+    <dimen name="tile_icon">36dp</dimen>
+    <dimen name="title">19sp</dimen>
+    <dimen name="text_l">16sp</dimen>
+    <dimen name="text_m">14sp</dimen>
+    <dimen name="text_s">12sp</dimen>
+    <dimen name="row_h">50dp</dimen>
+    <dimen name="cat_h">40dp</dimen>
+    <dimen name="cat_w">160dp</dimen>
+    <dimen name="preview_w">250dp</dimen>
+    <dimen name="preview_h">140dp</dimen>
+    <dimen name="poster_w">96dp</dimen>
+    <dimen name="poster_h">144dp</dimen>
+    <dimen name="recent_w">148dp</dimen>
+    <dimen name="recent_h">74dp</dimen>
+    <dimen name="ep_w">190dp</dimen>
+    <dimen name="ep_h">96dp</dimen>
+    <dimen name="btn_h">44dp</dimen>
+    <dimen name="icon_btn">44dp</dimen>
+    <dimen name="code">34sp</dimen>
+    <dimen name="hero">30sp</dimen>
+    <dimen name="logo">34dp</dimen>
+</resources>

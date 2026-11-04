@@ -28,17 +28,6 @@ jobs:
         with:
           gradle-version: '8.10.2'
 
-      - name: Copia l'interfaccia nell'app
-        env:
-          KAIROS_SERVER_URL: ${{ vars.KAIROS_SERVER_URL }}
-        run: |
-          mkdir -p app/src/main/assets/www
-          cp player/index.html app/src/main/assets/www/index.html
-          URL="${KAIROS_SERVER_URL:-https://kairos-panel.mariopiccolo8562.workers.dev}"; URL="${URL%/}"
-          UIV=$(sha256sum player/index.html | cut -c1-12)
-          printf 'window.KAIROS_SERVER = %s;\nwindow.KX_UI = "%s";\n' "$(jq -Rn --arg u "$URL" '$u')" "$UIV" > app/src/main/assets/www/config.js
-          echo "Pannello: $URL"
-
       - name: Chiave di firma
         env:
           KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
@@ -69,13 +58,12 @@ jobs:
           KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KAIROS_SERVER_URL: ${{ vars.KAIROS_SERVER_URL }}
           TV_APP_NAME: ${{ vars.TV_APP_NAME }}
           TV_APP_ID: ${{ vars.TV_APP_ID }}
         run: gradle assembleRelease --no-daemon --stacktrace
 
-      - run: |
-          cp app/build/outputs/apk/release/app-release.apk kairos-tv.apk
-          ls -l kairos-tv.apk
+      - run: cp app/build/outputs/apk/release/app-release.apk kairos-tv.apk
 
       - uses: actions/upload-artifact@v4
         with:

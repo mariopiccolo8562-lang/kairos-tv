@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Molti flussi IPTV sono in http: serve consentire il traffico in chiaro.
+<!-- Molti flussi IPTV sono in http: il traffico in chiaro va consentito.
      La comunicazione con il pannello Cloudflare resta sempre in https. -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="true">

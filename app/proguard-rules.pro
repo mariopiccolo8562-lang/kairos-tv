@@ -1,12 +1,9 @@
-# Mantiene i metodi esposti al JavaScript del player
--keepattributes JavascriptInterface
--keepclassmembers class com.kairos.tv.MainActivity$Bridge {
-    @android.webkit.JavascriptInterface <methods>;
-}
-
-# WireGuard: GoBackend usa metodi nativi (JNI, nomi Java_com_wireguard_android_backend_GoBackend_*),
-# il VpnService è dichiarato nel manifest della libreria. La libreria è piccola: si tiene tutta.
+# WireGuard: GoBackend usa metodi nativi (JNI) e il VpnService dichiarato nel manifest della libreria
 -keep class com.wireguard.** { *; }
-# annotazioni JSR-305 usate dalla libreria solo in compilazione (compileOnly)
 -dontwarn javax.annotation.**
 -dontwarn com.google.errorprone.annotations.**
+
+# Glide
+-keep public class * implements com.bumptech.glide.module.GlideModule
+-keep class * extends com.bumptech.glide.module.AppGlideModule { <init>(...); }
+-dontwarn com.bumptech.glide.**

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- locandina stile Netflix: solo l'immagine (il nome compare se l'immagine manca) -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginRight="6dp"
+    android:background="@drawable/bg_card"
+    android:focusable="true"
+    android:padding="3dp">
+    <FrameLayout
+        android:id="@+id/box"
+        android:layout_width="@dimen/poster_w"
+        android:layout_height="@dimen/poster_h"
+        android:background="@drawable/bg_ph">
+        <TextView
+            android:id="@+id/ph"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:padding="8dp"
+            android:textColor="@color/text2"
+            android:textSize="@dimen/text_s"
+            android:textStyle="bold" />
+        <ImageView
+            android:id="@+id/img"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop" />
+    </FrameLayout>
+</FrameLayout>
