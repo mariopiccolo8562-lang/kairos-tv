@@ -102,6 +102,7 @@ class LiveActivity : BaseActivity() {
         catAdapter = CatAdapter(
             onFocus = { c, _ -> if (c.id != curCat) { pendingCat = c; App.main.removeCallbacks(loadCatR); App.main.postDelayed(loadCatR, 260) } },
             onClick = { c, _ -> pendingCat = c; App.main.removeCallbacks(loadCatR); loadChannels(focus = true) },
+            onRight = { channels.focusVisible() },
         )
         cats.fast()
         cats.adapter = catAdapter
@@ -418,7 +419,12 @@ class LiveActivity : BaseActivity() {
             h.itemView.setOnClickListener { onChannelClick(h.bindingAdapterPosition) }
             h.itemView.setOnLongClickListener { toggleFav(h.bindingAdapterPosition); true }
             h.itemView.setOnKeyListener { _, code, e ->
-                if (code == KeyEvent.KEYCODE_MENU && e.action == KeyEvent.ACTION_UP) { toggleFav(h.bindingAdapterPosition); true } else false
+                when {
+                    code == KeyEvent.KEYCODE_MENU && e.action == KeyEvent.ACTION_UP -> { toggleFav(h.bindingAdapterPosition); true }
+                    // SINISTRA: torna sempre alla categoria in uso, anche dopo aver scorso tanti canali
+                    code == KeyEvent.KEYCODE_DPAD_LEFT && e.action == KeyEvent.ACTION_DOWN -> { cats.focusAt(catAdapter.selected); true }
+                    else -> false
+                }
             }
             return h
         }

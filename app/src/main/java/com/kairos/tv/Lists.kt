@@ -57,7 +57,7 @@ fun RecyclerView.fast(horizontal: Boolean = false) {
 }
 
 /** colonna delle categorie (Diretta, Film, Serie) */
-class CatAdapter(private val onFocus: (Db.Cat, Int) -> Unit, private val onClick: (Db.Cat, Int) -> Unit) : RecyclerView.Adapter<CatAdapter.H>() {
+class CatAdapter(private val onFocus: (Db.Cat, Int) -> Unit, private val onClick: (Db.Cat, Int) -> Unit, private val onRight: (() -> Unit)? = null) : RecyclerView.Adapter<CatAdapter.H>() {
     var items: List<Db.Cat> = emptyList()
     var selected = 0
 
@@ -92,6 +92,11 @@ class CatAdapter(private val onFocus: (Db.Cat, Int) -> Unit, private val onClick
             val i = h.bindingAdapterPosition
             if (i >= 0 && i < items.size) onClick(items[i], i)
         }
+        // DESTRA dalle categorie: alla lista accanto, nel punto visibile (non a un elemento a caso)
+        h.itemView.setOnKeyListener { _, code, e ->
+            val r = onRight
+            if (r != null && code == android.view.KeyEvent.KEYCODE_DPAD_RIGHT && e.action == android.view.KeyEvent.ACTION_DOWN) { r(); true } else false
+        }
         return h
     }
 
@@ -101,6 +106,24 @@ class CatAdapter(private val onFocus: (Db.Cat, Int) -> Unit, private val onClick
         h.count.text = if (c.count >= 0) Ui.num(c.count) else ""
         h.itemView.isActivated = i == selected
     }
+}
+
+/** porta il cursore sull'elemento [i] della lista (scorrendola se serve) */
+fun RecyclerView.focusAt(i: Int) {
+    val n = adapter?.itemCount ?: 0
+    if (n == 0) return
+    val p = i.coerceIn(0, n - 1)
+    val v = findViewHolderForAdapterPosition(p)?.itemView
+    if (v != null) { v.requestFocus(); return }
+    scrollToPosition(p)
+    post { (findViewHolderForAdapterPosition(p)?.itemView ?: getChildAt(0))?.requestFocus() }
+}
+
+/** il primo elemento visibile della lista prende il cursore */
+fun RecyclerView.focusVisible() {
+    val lm = layoutManager as? androidx.recyclerview.widget.LinearLayoutManager
+    val first = lm?.findFirstCompletelyVisibleItemPosition()?.takeIf { it >= 0 } ?: lm?.findFirstVisibleItemPosition() ?: -1
+    ((if (first >= 0) findViewHolderForAdapterPosition(first)?.itemView else null) ?: getChildAt(0))?.requestFocus()
 }
 
 /** categorie fisse in testa alle liste */

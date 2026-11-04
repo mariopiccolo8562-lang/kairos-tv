@@ -96,6 +96,9 @@ open class BrowseActivity : BaseActivity() {
         for ((id, k) in map) {
             val t = findViewById<TextView>(id)
             t.isActivated = k == kind
+            t.setOnKeyListener { _, code, e ->
+                if (code == KeyEvent.KEYCODE_DPAD_DOWN && e.action == KeyEvent.ACTION_DOWN) { focusFirstVisible(); true } else false
+            }
             t.setOnClickListener {
                 if (k == kind) { focusFirst(); return@setOnClickListener }
                 when (k) {
@@ -232,6 +235,16 @@ open class BrowseActivity : BaseActivity() {
         }
     }
 
+    /** dalle schede in alto GIÙ: al riquadro grande se si vede, altrimenti alla prima riga visibile */
+    private fun focusFirstVisible() {
+        val lm = rows.layoutManager as? LinearLayoutManager
+        if (lm == null || lm.findFirstVisibleItemPosition() <= 0) { focusFirst(); return }
+        val p = lm.findFirstCompletelyVisibleItemPosition().takeIf { it >= 0 } ?: lm.findFirstVisibleItemPosition()
+        val rh = rows.findViewHolderForAdapterPosition(p) as? RowH
+        val v = rh?.list?.let { l -> (l.layoutManager as? LinearLayoutManager)?.findFirstVisibleItemPosition()?.let { l.findViewHolderForAdapterPosition(it)?.itemView } ?: l.getChildAt(0) }
+        if (v != null) v.requestFocus() else focusFirst()
+    }
+
     private fun focusFirst() {
         val h = rows.findViewHolderForAdapterPosition(0)?.itemView
         val play = h?.findViewById<View>(R.id.play)
@@ -241,6 +254,21 @@ open class BrowseActivity : BaseActivity() {
             v.requestFocus(); return
         }
         findViewById<View>(if (kind == "list") R.id.tabList else R.id.tabHome).requestFocus()
+    }
+
+    /** la scheda attiva in alto (Home, Film…) prende il cursore */
+    private fun focusTab() {
+        val id = when (kind) { "vod" -> R.id.tabFilm; "series" -> R.id.tabSeries; "list" -> R.id.tabList; else -> R.id.tabHome }
+        findViewById<View>(id).requestFocus()
+    }
+
+    /** SU dalla prima riga quando sopra non c'è il riquadro grande */
+    private fun upFromRow(card: View): Boolean {
+        val rowView = (card.parent as? View)?.parent as? View ?: return false
+        val pos = rows.getChildAdapterPosition(rowView)
+        val firstRow = adapter.items.indexOfFirst { it.type != T_HERO }
+        if (pos == firstRow && hero == null) { focusTab(); return true }
+        return false
     }
 
     /** in fondo alle righe INDIETRO riporta in cima; in cima chiude (la Home chiede conferma) */
@@ -310,6 +338,9 @@ open class BrowseActivity : BaseActivity() {
                 for (b in listOf(h.play, h.info)) {
                     b.compoundDrawables[0]?.mutate()?.setColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN)
                     b.setOnFocusChangeListener { x, has -> (x as TextView).compoundDrawables[0]?.setColorFilter(if (has) Color.BLACK else Color.WHITE, PorterDuff.Mode.SRC_IN) }
+                }
+                for (b in listOf(h.play, h.info)) b.setOnKeyListener { _, code, e ->
+                    if (code == KeyEvent.KEYCODE_DPAD_UP && e.action == KeyEvent.ACTION_DOWN) { focusTab(); true } else false
                 }
                 h.play.setOnClickListener { hero?.let { openCard(it, autoplay = it.table == "vod") } }
                 h.info.setOnClickListener { hero?.let { openCard(it) } }
@@ -420,6 +451,7 @@ open class BrowseActivity : BaseActivity() {
                     code == KeyEvent.KEYCODE_MENU && e.action == KeyEvent.ACTION_UP -> { h.card()?.let { toggleFav(it) }; true }
                     e.action == KeyEvent.ACTION_DOWN && code == KeyEvent.KEYCODE_DPAD_RIGHT -> h.bindingAdapterPosition >= itemCount - 1
                     e.action == KeyEvent.ACTION_DOWN && code == KeyEvent.KEYCODE_DPAD_LEFT -> h.bindingAdapterPosition == 0
+                    e.action == KeyEvent.ACTION_DOWN && code == KeyEvent.KEYCODE_DPAD_UP -> upFromRow(h.itemView)
                     else -> false
                 }
             }

@@ -59,6 +59,7 @@ class VodActivity : BaseActivity() {
         catAdapter = CatAdapter(
             onFocus = { c, _ -> if (c.id != curCat) { pendingCat = c; App.main.removeCallbacks(loadR); App.main.postDelayed(loadR, 280) } },
             onClick = { c, _ -> pendingCat = c; App.main.removeCallbacks(loadR); load(focus = true) },
+            onRight = { focusGrid() },
         )
         cats.fast()
         cats.adapter = catAdapter
@@ -157,6 +158,9 @@ class VodActivity : BaseActivity() {
         }
     }
 
+    private fun focusCats() = cats.focusAt(catAdapter.selected)
+    private fun focusGrid() = grid.focusVisible()
+
     private fun openAt(pos: Int) {
         val c = posters.cursor ?: return
         if (pos < 0 || c.isClosed || !c.moveToPosition(pos)) return
@@ -189,7 +193,15 @@ class VodActivity : BaseActivity() {
             h.itemView.setOnClickListener { openAt(h.bindingAdapterPosition) }
             h.itemView.setOnLongClickListener { toggleFav(h.bindingAdapterPosition); true }
             h.itemView.setOnKeyListener { _, code, e ->
-                if (code == KeyEvent.KEYCODE_MENU && e.action == KeyEvent.ACTION_UP) { toggleFav(h.bindingAdapterPosition); true } else false
+                val pos = h.bindingAdapterPosition
+                when {
+                    code == KeyEvent.KEYCODE_MENU && e.action == KeyEvent.ACTION_UP -> { toggleFav(pos); true }
+                    // prima colonna: SINISTRA va sempre alle categorie (la griglia altrimenti salta al film della riga sopra)
+                    code == KeyEvent.KEYCODE_DPAD_LEFT && e.action == KeyEvent.ACTION_DOWN && pos >= 0 && pos % glm.spanCount == 0 -> { focusCats(); true }
+                    // prima riga: SU va alla ricerca
+                    code == KeyEvent.KEYCODE_DPAD_UP && e.action == KeyEvent.ACTION_DOWN && pos in 0 until glm.spanCount -> { query.requestFocus(); true }
+                    else -> false
+                }
             }
             Ui.zoom(h.itemView, 1.06f)
             return h
