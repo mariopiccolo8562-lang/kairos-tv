@@ -95,7 +95,7 @@ class SettingsActivity : BaseActivity() {
         }
         wasRunning = Sync.running
         syncSub = row(R.drawable.ic_refresh, "Aggiorna liste", syncText(), "") { Sync.force(); build() }
-        row(R.drawable.ic_tv, "Anteprima canali", "Il canale parte nel riquadro quando ti fermi un attimo (versione più leggera). OK apre sempre lo schermo intero", if (Store.preview == "off") "Spenta" else "Leggerissima") { choosePreview() }
+        row(R.drawable.ic_tv, "Anteprima canali", "OK una volta: il canale parte nel riquadro (versione più leggera) · OK di nuovo: schermo intero", if (Store.preview == "off") "Spenta" else "Al primo OK") { choosePreview() }
         val liteVal = when (Store.liteMode) { "on" -> "Sempre"; "max" -> "Leggerissima"; "off" -> "Mai"; else -> "Automatica" }
         row(R.drawable.ic_bolt, "Modalità leggera", "Per chiavette e TV vecchie: niente animazioni, immagini e memoria ridotte", liteVal) { chooseLite() }
         val upd = Updater.pending
@@ -141,7 +141,7 @@ class SettingsActivity : BaseActivity() {
     }
 
     private fun choosePreview() {
-        val opts = arrayOf("Leggerissima (consigliata): parte da sola quando ti fermi su un canale", "Spenta: nessun video nella lista canali")
+        val opts = arrayOf("Al primo OK (consigliata): il secondo OK apre lo schermo intero", "Spenta: OK apre subito lo schermo intero")
         val keys = arrayOf("light", "off")
         Ui.choose(this, "Anteprima nella lista canali", opts, if (Store.preview == "off") 1 else 0) { i ->
             Store.preview = keys[i]

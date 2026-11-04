@@ -65,8 +65,6 @@ class LiveActivity : BaseActivity() {
 
     private val loadCatR = Runnable { loadChannels() }
     private val previewR = Runnable { updatePreview() }
-    /** anteprima leggerissima: parte solo quando ci si ferma sul canale (mai mentre si scorre) */
-    private val autoR = Runnable { startVideo() }
     /** canale partito nel riquadro: il prossimo OK su di lui apre lo schermo intero */
     private var previewId = 0L
     private var videoSeq = 0
@@ -128,7 +126,6 @@ class LiveActivity : BaseActivity() {
 
     override fun onPause() {
         super.onPause()
-        App.main.removeCallbacks(autoR)
         stopVideo()
     }
 
@@ -228,14 +225,16 @@ class LiveActivity : BaseActivity() {
         stopVideo()
         App.main.removeCallbacks(previewR)
         App.main.postDelayed(previewR, 180)
-        App.main.removeCallbacks(autoR)
-        if (previewOn()) App.main.postDelayed(autoR, if (App.lite) 1_600L else 1_100L)
     }
 
-    /** OK sul canale: sempre schermo intero (l'anteprima parte da sola quando ci si ferma) */
+    /** OK sul canale: la prima volta parte l'anteprima nel riquadro, la seconda si apre lo schermo intero */
     private fun onChannelClick(pos: Int) {
-        App.main.removeCallbacks(autoR)
-        play(pos)
+        val c = chAdapter.cursor ?: return
+        if (pos < 0 || c.isClosed || !c.moveToPosition(pos)) return
+        val id = c.getLong(0)
+        if (!previewOn() || (previewId > 0 && id == previewId)) { play(pos); return }
+        if (pos != curPos || curRow == null) onChannelFocus(pos) // al tocco (telefoni) il canale non prende il focus
+        startVideo()
     }
 
     private fun key() = if (channels.isInTouchMode) "Tocca" else "OK"
@@ -247,7 +246,7 @@ class LiveActivity : BaseActivity() {
     }
 
     /** suggerimento nel riquadro quando il video non è partito */
-    private fun idleHint() = hint(null)
+    private fun idleHint() = hint(if (previewOn() && curRow != null) key() + " · anteprima" else null)
 
     private fun updatePreview() {
         val r = curRow ?: return
@@ -290,8 +289,8 @@ class LiveActivity : BaseActivity() {
 
     /* ---------------- anteprima leggerissima nel riquadro ---------------- */
     /**
-     * Parte da sola dopo un attimo fermi sul canale (mai mentre si scorre), con la versione più leggera
-     * del canale (es. SD al posto di FHD) e al massimo 480p: la chiavetta decodifica poco e la lista resta fluida.
+     * Parte solo con OK (il secondo OK apre lo schermo intero): mentre si scorre la lista non si decodifica niente.
+     * Usa la versione più leggera del canale (es. SD al posto di FHD) e al massimo 480p.
      */
     private fun previewOn(): Boolean = Store.preview != "off"
 
@@ -346,7 +345,6 @@ class LiveActivity : BaseActivity() {
     }
 
     private fun stopVideo() {
-        App.main.removeCallbacks(autoR)
         videoSeq++
         previewId = 0
         player?.let { try { it.stop(); it.clearMediaItems() } catch (_: Exception) {} }
