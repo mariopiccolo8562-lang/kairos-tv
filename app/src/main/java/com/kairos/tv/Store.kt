@@ -80,8 +80,8 @@ object Store {
         set(v) = put("liteMode", v)
     /** anteprima nella lista canali: click (primo OK = riquadro, secondo OK = schermo intero) | off */
     var preview: String
-        get() = "off" // Kairos TV: niente anteprima nella lista canali, OK apre subito lo schermo intero (più fluida)
-        set(v) = put("previewMode", v)
+        get() = s("previewTv", "light") // Kairos TV: light = anteprima leggerissima (parte da sola quando ci si ferma) | off
+        set(v) = put("previewTv", v)
     var plChoice: String
         get() = s("plChoice")
         set(v) = put("plChoice", v)

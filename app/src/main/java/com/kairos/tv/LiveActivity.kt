@@ -65,6 +65,8 @@ class LiveActivity : BaseActivity() {
 
     private val loadCatR = Runnable { loadChannels() }
     private val previewR = Runnable { updatePreview() }
+    /** anteprima leggerissima: parte solo quando ci si ferma sul canale (mai mentre si scorre) */
+    private val autoR = Runnable { startVideo() }
     /** canale partito nel riquadro: il prossimo OK su di lui apre lo schermo intero */
     private var previewId = 0L
     private var videoSeq = 0
@@ -126,6 +128,7 @@ class LiveActivity : BaseActivity() {
 
     override fun onPause() {
         super.onPause()
+        App.main.removeCallbacks(autoR)
         stopVideo()
     }
 
@@ -225,16 +228,14 @@ class LiveActivity : BaseActivity() {
         stopVideo()
         App.main.removeCallbacks(previewR)
         App.main.postDelayed(previewR, 180)
+        App.main.removeCallbacks(autoR)
+        if (previewOn()) App.main.postDelayed(autoR, if (App.lite) 1_600L else 1_100L)
     }
 
-    /** OK sul canale: la prima volta parte nel riquadro, la seconda si apre a schermo intero */
+    /** OK sul canale: sempre schermo intero (l'anteprima parte da sola quando ci si ferma) */
     private fun onChannelClick(pos: Int) {
-        val c = chAdapter.cursor ?: return
-        if (pos < 0 || c.isClosed || !c.moveToPosition(pos)) return
-        val id = c.getLong(0)
-        if (!previewOn() || (previewId > 0 && id == previewId)) { play(pos); return }
-        if (pos != curPos || curRow == null) onChannelFocus(pos) // al tocco (telefoni) il canale non prende il focus
-        startVideo()
+        App.main.removeCallbacks(autoR)
+        play(pos)
     }
 
     private fun key() = if (channels.isInTouchMode) "Tocca" else "OK"
@@ -246,7 +247,7 @@ class LiveActivity : BaseActivity() {
     }
 
     /** suggerimento nel riquadro quando il video non è partito */
-    private fun idleHint() = hint(if (previewOn() && curRow != null) key() + " · anteprima" else null)
+    private fun idleHint() = hint(null)
 
     private fun updatePreview() {
         val r = curRow ?: return
@@ -287,20 +288,27 @@ class LiveActivity : BaseActivity() {
         if (n != null) { next.visibility = View.VISIBLE; next.text = "DOPO   " + Ui.hm(n.start) + "   " + n.title }
     }
 
-    /* ---------------- anteprima nel riquadro (al primo OK) ---------------- */
-    /** il video parte solo quando il cliente lo chiede: scorrere la lista resta leggero anche sulle chiavette vecchie */
+    /* ---------------- anteprima leggerissima nel riquadro ---------------- */
+    /**
+     * Parte da sola dopo un attimo fermi sul canale (mai mentre si scorre), con la versione più leggera
+     * del canale (es. SD al posto di FHD) e al massimo 480p: la chiavetta decodifica poco e la lista resta fluida.
+     */
     private fun previewOn(): Boolean = Store.preview != "off"
 
     private fun startVideo() {
         if (!previewOn() || isFinishing) return
         val r = curRow ?: return
-        val url = Play.liveUrls(r).firstOrNull() ?: run { play(curPos); return }
         val id = r.l("_id")
         previewId = id
         val my = ++videoSeq
         pspin.visibility = View.VISIBLE
         hint(key() + " · schermo intero")
         bg {
+            // versione più leggera dello stesso canale, se la playlist ne ha (niente HEVC: pesa di più da decodificare)
+            val light = try { Db.variants(r).filter { !it.hevc && it.q < Quality.rank(r.s("name")) }.minByOrNull { it.q } } catch (_: Exception) { null }
+            val src = light?.let { Db.one("live", it.id) } ?: r
+            val url = Play.liveUrls(src).firstOrNull() ?: Play.liveUrls(r).firstOrNull()
+            if (url == null) { ui { if (my == videoSeq) { previewId = 0; pspin.visibility = View.GONE; hint(null) } }; return@bg }
             Vpns.awaitForced() // VPN «sempre attiva»: anche l'anteprima passa dalla VPN
             // limite di visioni contemporanee del pannello: l'anteprima è una visione come le altre
             val block = Panel.stream("live", r.s("name"))
@@ -338,6 +346,7 @@ class LiveActivity : BaseActivity() {
     }
 
     private fun stopVideo() {
+        App.main.removeCallbacks(autoR)
         videoSeq++
         previewId = 0
         player?.let { try { it.stop(); it.clearMediaItems() } catch (_: Exception) {} }

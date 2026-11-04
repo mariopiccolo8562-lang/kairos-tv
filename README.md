@@ -12,19 +12,19 @@ La prima versione era una pagina web dentro l'app (come Kairos Pro) e sulle chia
 - ogni riga legge solo i suoi primi 20 titoli e solo quando sta per comparire;
 - immagini caricate alla misura mostrata, in pausa mentre si scorre col tasto tenuto premuto;
 - **modalità leggera automatica** sulle chiavette con poca memoria (niente zoom, immagini più piccole);
-- nessuna WebView, nessuna animazione, nessuna sfocatura, nessuna anteprima video.
+- nessuna WebView, nessuna animazione, nessuna sfocatura; l'anteprima dei canali parte solo quando ci si ferma.
 
 ## Cosa c'è
 
 - **Home stile Netflix**: schede in alto (Home, Film, Serie TV, In diretta, La mia lista), riquadro grande con un titolo in evidenza (fisso), righe di locandine: Continua a guardare, La mia lista, aggiunti di recente, categorie. «Vedi tutti» in fondo a ogni riga apre la categoria intera.
 - **Film** e **Serie TV** con tutte le categorie a righe, scheda del titolo, stagioni ed episodi, episodio successivo automatico.
-- **TV in diretta** con guida adesso/dopo: **OK apre subito lo schermo intero** (niente anteprima: più fluida).
+- **TV in diretta** con guida adesso/dopo e **anteprima leggerissima**: parte da sola quando ti fermi un attimo su un canale (mai mentre scorri), con la versione più leggera del canale e al massimo 480p. **OK apre sempre lo schermo intero**. Si spegne da Impostazioni → Anteprima canali.
 - Ricerca, La mia lista (tieni premuto OK su una locandina), profili (anche bambini).
 - Lettore **ExoPlayer** con qualità adattiva.
 - Dal pannello: attivazione e scadenza, playlist M3U/Xtream, cambio DNS, *Disconnetti*, visioni contemporanee, permessi, profili, collegamento di altre TV, messaggi, VPN, *Errori applicazione*. In *Utenti online* la versione compare come `tv 2.0.0`.
 - **Aggiornamenti automatici** dalle release di questo repository.
 
-Non ci sono, di proposito: VLC, registrazioni, multi-schermo, speed test, assistente IA, add-on, trailer, anteprima dei canali.
+Non ci sono, di proposito: VLC, registrazioni, multi-schermo, speed test, assistente IA, add-on, trailer.
 
 ## Messa in funzione (una volta sola)
 
