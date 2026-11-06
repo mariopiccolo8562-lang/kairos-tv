@@ -120,6 +120,10 @@ object Store {
     var vpnUser: Boolean
         get() = p.getBoolean("vpnUser", false)
         set(v) = p.edit().putBoolean("vpnUser", v).apply()
+    /** ultima volta che l'app ha chiesto il permesso per installare gli aggiornamenti */
+    var permAskT: Long
+        get() = p.getLong("permAskT", 0L)
+        set(v) = p.edit().putLong("permAskT", v).apply()
     var privacyOk: Boolean
         get() = p.getBoolean("privacyOk", false)
         set(v) = p.edit().putBoolean("privacyOk", v).apply()
