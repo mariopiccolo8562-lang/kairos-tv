@@ -133,6 +133,14 @@ class VodActivity : BaseActivity() {
         curCat = c.id
         val i = catAdapter.items.indexOfFirst { it.id == c.id }
         if (i >= 0) catAdapter.select(i)
+        // categoria per adulti con il controllo genitori attivo: vuota finché non si inserisce il PIN (OK sulla categoria)
+        if (Parental.locked(c.adult)) {
+            seq++; posters.swap(null)
+            empty.visibility = View.VISIBLE
+            empty.text = "Categoria protetta dal controllo genitori.\nPremi OK sulla categoria e inserisci il PIN."
+            if (focus) Parental.ask(this) { pendingCat = c; load(focus = true) }
+            return
+        }
         val pls = K.activeIds()
         val kids = K.kids
         val favs = Store.favs(table)

@@ -83,6 +83,16 @@ object Store {
         get() = s("rcv")
         set(v) = put("rcv", v)
     /** auto | on | max | off (quella imposta dal pannello vince) */
+    /** controllo genitori (attivo di serie), PIN scelto dal cliente (vuoto = 0000) e ultimo rinvio della scelta del PIN */
+    var parental: Boolean
+        get() = p.getBoolean("parental", true)
+        set(v) = p.edit().putBoolean("parental", v).apply()
+    var pin: String
+        get() = s("pin", "")
+        set(v) = put("pin", v)
+    var pinLater: Long
+        get() = p.getLong("pinLater", 0L)
+        set(v) = p.edit().putLong("pinLater", v).apply()
     var liteMode: String
         get() = Remote.lite ?: s("liteMode", "auto")
         set(v) = put("liteMode", v)

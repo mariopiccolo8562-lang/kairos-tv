@@ -98,6 +98,14 @@ class SettingsActivity : BaseActivity() {
         row(R.drawable.ic_tv, "Anteprima canali", "OK una volta: il canale parte nel riquadro (versione più leggera) · OK di nuovo: schermo intero", (if (Store.preview == "off") "Spenta" else "Al primo OK") + (if (Remote.imposed("preview")) " · fornitore" else "")) { if (Remote.imposed("preview")) Ui.toast("Impostazione scelta dal tuo fornitore") else choosePreview() }
         val liteVal = when (Store.liteMode) { "on" -> "Sempre"; "max" -> "Leggerissima"; "off" -> "Mai"; else -> "Automatica" } + (if (Remote.imposed("lite")) " · fornitore" else "")
         row(R.drawable.ic_bolt, "Modalità leggera", "Per chiavette e TV vecchie: niente animazioni, immagini e memoria ridotte", liteVal) { if (Remote.imposed("lite")) Ui.toast("Impostazione scelta dal tuo fornitore") else chooseLite() }
+        row(R.drawable.ic_shield, "Controllo genitori", "Le categorie per adulti chiedono il PIN", if (Parental.on()) "Attivo" else "Spento") {
+            if (Parental.on()) Parental.ask(this, "PIN per disattivare") { Store.parental = false; Parental.unlocked = false; build() }
+            else { Store.parental = true; Parental.unlocked = false; build(); if (Parental.pinIsDefault()) Parental.choose(this) { build() } }
+        }
+        row(R.drawable.ic_shield, "PIN del controllo genitori", if (Parental.pinIsDefault()) "Ora è 0000: scegline uno tuo" else "Cambia il PIN", if (Parental.pinIsDefault()) "0000" else "••••") {
+            if (Parental.pinIsDefault()) Parental.choose(this) { build() }
+            else Parental.ask(this, "PIN attuale") { Parental.choose(this) { build() } }
+        }
         val upd = Updater.pending
         row(R.drawable.ic_refresh, "Aggiornamenti dell'app", "Versione installata " + BuildConfig.VERSION_NAME + (if (upd != null) (if (Updater.ready != null) " · scaricata la " else " · pronta la ") + upd.ver else ""), if (upd != null) (if (Updater.ready != null) "Installa" else "Aggiorna") else "") {
             if (upd != null) Updater.download(this, upd.url)

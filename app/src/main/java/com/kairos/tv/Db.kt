@@ -102,7 +102,7 @@ object Db {
     }
 
     /* ---------------- categorie ---------------- */
-    class Cat(val id: String, val name: String, var count: Int = -1)
+    class Cat(val id: String, val name: String, var count: Int = -1, val adult: Boolean = false)
 
     fun cats(kind: String, pls: List<String>, kids: Boolean): List<Cat> {
         if (pls.isEmpty()) return emptyList()
@@ -114,11 +114,11 @@ object Db {
             while (c.moveToNext()) counts[c.getString(0) ?: ""] = c.getInt(1)
         }
         val q2 = base(pls, kids)
-        r.rawQuery("SELECT id, name FROM cat WHERE kind = ? AND ${q2.where} ORDER BY ord", arrayOf(kind) + q2.args.toTypedArray()).use { c ->
+        r.rawQuery("SELECT id, name, adult FROM cat WHERE kind = ? AND ${q2.where} ORDER BY ord", arrayOf(kind) + q2.args.toTypedArray()).use { c ->
             while (c.moveToNext()) {
                 val id = c.getString(0) ?: continue
                 val n = counts[id] ?: 0
-                if (n > 0) out.add(Cat(id, c.getString(1) ?: "", n))
+                if (n > 0) out.add(Cat(id, c.getString(1) ?: "", n, c.getInt(2) == 1))
             }
         }
         return out

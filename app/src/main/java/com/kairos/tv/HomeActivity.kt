@@ -8,6 +8,7 @@ class HomeActivity : BrowseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        App.main.postDelayed({ Parental.firstRun(this) }, 2500) // primo avvio: scelta del PIN del controllo genitori
     }
 
     override fun onResume() {

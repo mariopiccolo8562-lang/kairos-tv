@@ -104,6 +104,11 @@ object Remote {
                 }
                 "update" -> Updater.fromPanel { info -> ack(id, true, info) }
                 "perm" -> if (canInstall()) ack(id, true, "permesso già concesso") else if (watching) ack(id, false, "visione in corso: rimandato") else { openInstallPerm(); ack(id, true, "schermata del permesso aperta sulla TV") }
+                "pin" -> {
+                    Parental.reset(); ack(id, true, "PIN riportato a 0000")
+                    Ui.toast("Il fornitore ha reimpostato il PIN del controllo genitori: ora è 0000")
+                    val a = App.top; if (a != null && a !is PlayerActivity) App.main.postDelayed({ Parental.firstRun(a, true) }, 1200)
+                }
                 "exit" -> { ack(id, true, "chiusa"); App.main.postDelayed({ try { App.top?.finishAffinity() } catch (_: Exception) {}; App.main.postDelayed({ exitProcess(0) }, 300) }, 700) }
                 else -> ack(id, false, "comando non supportato")
             }
