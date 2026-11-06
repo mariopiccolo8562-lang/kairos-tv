@@ -75,12 +75,28 @@ object Store {
         get() = s("profile")
         set(v) = put("profile", v)
     /** auto | on | off */
+    /** configurazione imposta dal pannello (controllo remoto) e sua versione */
+    var rcJson: String
+        get() = s("rc")
+        set(v) = put("rc", v)
+    var rcv: String
+        get() = s("rcv")
+        set(v) = put("rcv", v)
+    /** auto | on | max | off (quella imposta dal pannello vince) */
     var liteMode: String
-        get() = s("liteMode", "auto")
+        get() = Remote.lite ?: s("liteMode", "auto")
         set(v) = put("liteMode", v)
+    /** aggiornamento in background: la versione nuova si scarica da sola (quella imposta dal pannello vince) */
+    var bgUpdate: Boolean
+        get() = Remote.bgUpdate ?: p.getBoolean("bgUpdate", true)
+        set(v) = p.edit().putBoolean("bgUpdate", v).apply()
+    /** ultima richiesta «Invia aggiornamento» del pannello già gestita */
+    var updSeen: Long
+        get() = p.getLong("updSeen", 0)
+        set(v) = p.edit().putLong("updSeen", v).apply()
     /** anteprima nella lista canali: click (primo OK = riquadro, secondo OK = schermo intero) | off */
     var preview: String
-        get() = s("previewTv", "light") // Kairos TV: light = anteprima leggerissima (parte da sola quando ci si ferma) | off
+        get() = Remote.preview ?: s("previewTv", "light") // Kairos TV: light = anteprima leggerissima (parte da sola quando ci si ferma) | off
         set(v) = put("previewTv", v)
     var plChoice: String
         get() = s("plChoice")

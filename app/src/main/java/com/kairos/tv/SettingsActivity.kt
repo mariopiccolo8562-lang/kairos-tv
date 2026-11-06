@@ -95,13 +95,18 @@ class SettingsActivity : BaseActivity() {
         }
         wasRunning = Sync.running
         syncSub = row(R.drawable.ic_refresh, "Aggiorna liste", syncText(), "") { Sync.force(); build() }
-        row(R.drawable.ic_tv, "Anteprima canali", "OK una volta: il canale parte nel riquadro (versione più leggera) · OK di nuovo: schermo intero", if (Store.preview == "off") "Spenta" else "Al primo OK") { choosePreview() }
-        val liteVal = when (Store.liteMode) { "on" -> "Sempre"; "max" -> "Leggerissima"; "off" -> "Mai"; else -> "Automatica" }
-        row(R.drawable.ic_bolt, "Modalità leggera", "Per chiavette e TV vecchie: niente animazioni, immagini e memoria ridotte", liteVal) { chooseLite() }
+        row(R.drawable.ic_tv, "Anteprima canali", "OK una volta: il canale parte nel riquadro (versione più leggera) · OK di nuovo: schermo intero", (if (Store.preview == "off") "Spenta" else "Al primo OK") + (if (Remote.imposed("preview")) " · fornitore" else "")) { if (Remote.imposed("preview")) Ui.toast("Impostazione scelta dal tuo fornitore") else choosePreview() }
+        val liteVal = when (Store.liteMode) { "on" -> "Sempre"; "max" -> "Leggerissima"; "off" -> "Mai"; else -> "Automatica" } + (if (Remote.imposed("lite")) " · fornitore" else "")
+        row(R.drawable.ic_bolt, "Modalità leggera", "Per chiavette e TV vecchie: niente animazioni, immagini e memoria ridotte", liteVal) { if (Remote.imposed("lite")) Ui.toast("Impostazione scelta dal tuo fornitore") else chooseLite() }
         val upd = Updater.pending
-        row(R.drawable.ic_refresh, "Aggiornamenti dell'app", "Versione installata " + BuildConfig.VERSION_NAME + (if (upd != null) " · pronta la " + upd.ver else ""), if (upd != null) "Aggiorna" else "") {
+        row(R.drawable.ic_refresh, "Aggiornamenti dell'app", "Versione installata " + BuildConfig.VERSION_NAME + (if (upd != null) (if (Updater.ready != null) " · scaricata la " else " · pronta la ") + upd.ver else ""), if (upd != null) (if (Updater.ready != null) "Installa" else "Aggiorna") else "") {
             if (upd != null) Updater.download(this, upd.url)
             else { Ui.toast("Controllo…"); bg { Updater.check(this) } }
+        }
+        val bgVal = (if (Store.bgUpdate) "Sì" else "No") + (if (Remote.imposed("bgupd")) " · fornitore" else "")
+        row(R.drawable.ic_refresh, "Aggiornamenti in background", "La versione nuova si scarica da sola su Wi-Fi o cavo: a te resta solo «Installa»", bgVal) {
+            if (Remote.imposed("bgupd")) Ui.toast("Impostazione scelta dal tuo fornitore")
+            else { Store.bgUpdate = !Store.bgUpdate; Ui.toast(if (Store.bgUpdate) "La versione nuova si scaricherà da sola" else "Scaricheremo la versione nuova solo quando accetti"); build() }
         }
         row(R.drawable.ic_info, "Privacy e condizioni", "Informativa del tuo fornitore", "") {
             bg { val t = Panel.privacyText(); ui { Ui.dialog(this, "Privacy e condizioni", t.ifEmpty { "Nessuna informativa disponibile." }) } }

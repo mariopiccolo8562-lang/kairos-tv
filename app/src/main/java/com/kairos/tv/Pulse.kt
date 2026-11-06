@@ -67,6 +67,7 @@ object Pulse {
     }
 
     private fun handle(j: JSONObject) {
+        Remote.onBeat(j) // controllo remoto: impostazioni imposte e comandi
         val kick = j.optLong("kick", 0)
         if (kick > 0) {
             kickAck = kick

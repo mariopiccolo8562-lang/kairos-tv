@@ -179,6 +179,7 @@ object Panel {
         if (code == 429) throw Err("Troppe richieste: riprovo tra poco")
         if (code >= 400) throw Err(j.optString("error").ifEmpty { "Errore del server (HTTP $code)" })
         val s = State.parse(j)
+        if (j.has("rc")) Remote.apply(j.optJSONObject("rc"), j.optString("rcv")) // impostazioni imposte dal pannello
         // il pannello può indicare un nuovo indirizzo per sé stesso (Impostazioni → server)
         val mv = s.setting("serverUrl").trimEnd('/')
         if (mv.startsWith("https://") && mv != base) Store.server = mv
@@ -202,7 +203,13 @@ object Panel {
         // diagnostica in «Online ora»: codec, decodifica, blocchi, fotogrammi persi, qualità ridotta
         if (stats != null) b.put("stats", stats)
         if (kickAck > 0) b.put("kickAck", kickAck)
+        b.put("cfg", Remote.snapshot()).put("rcv", Store.rcv) // controllo remoto: impostazioni attuali e configurazione applicata
         return try { val (c, j) = post("/api/player/heartbeat", b); if (c == 200) j else null } catch (_: Exception) { null }
+    }
+
+    /** conferma al pannello di un comando del controllo remoto */
+    fun cmdAck(id: Long, ok: Boolean, info: String) {
+        try { post("/api/player/cmd", auth().put("id", id).put("ok", ok).put("info", info.take(200))) } catch (_: Exception) {}
     }
 
     /** limite di visioni contemporanee: null = si può guardare, altrimenti il messaggio */
