@@ -61,7 +61,7 @@ object Remote {
             App.lite = App.I.detectLite()
             App.max = Store.liteMode == "max"
             if (Store.liteMode != liteBefore && (App.lite != wasLite || App.max != wasMax) && App.top !is PlayerActivity) restart()
-            else (App.top as? BaseActivity)?.onStateChanged()
+            else (App.top as? BaseActivity)?.stateChanged()
         }
     }
     fun applyRaw(rcStr: String?, rcv: String) {

@@ -82,6 +82,7 @@ open class BrowseActivity : BaseActivity() {
 
         tabs()
         findViewById<View>(R.id.search).setOnClickListener { open(SearchActivity::class.java) }
+        vpnShield(findViewById(R.id.vpnShield))
         val av = findViewById<TextView>(R.id.avatar)
         av.setOnClickListener { open(SettingsActivity::class.java) }
         av.setOnFocusChangeListener { v, has -> (v.background as? android.graphics.drawable.GradientDrawable)?.setStroke(if (has) Ui.dp(this, 3) else 0, Color.WHITE) }

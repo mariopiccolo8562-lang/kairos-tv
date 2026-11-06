@@ -95,6 +95,7 @@ class LiveActivity : BaseActivity() {
 
         findViewById<View>(R.id.back).setOnClickListener { finish() }
         findViewById<View>(R.id.search).setOnClickListener { open(SearchActivity::class.java) }
+        vpnShield(findViewById(R.id.vpnShield))
         findViewById<View>(R.id.watch).setOnClickListener { play(curPos) }
         findViewById<View>(R.id.guide).setOnClickListener { guide() }
         favBtn.setOnClickListener { toggleFav(curPos) }

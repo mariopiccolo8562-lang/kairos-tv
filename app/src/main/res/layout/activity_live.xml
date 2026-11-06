@@ -33,6 +33,13 @@
             android:singleLine="true"
             android:textColor="@color/muted"
             android:textSize="@dimen/text_m" />
+        <ImageButton
+            android:id="@+id/vpnShield"
+            style="@style/IconBtn"
+            android:layout_marginRight="10dp"
+            android:contentDescription="VPN"
+            android:src="@drawable/ic_shield"
+            android:visibility="gone" />
         <Button
             android:id="@+id/search"
             style="@style/Btn"

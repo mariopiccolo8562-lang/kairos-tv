@@ -40,6 +40,13 @@
             android:textSize="@dimen/text_l"
             android:textStyle="bold" />
         <ImageButton
+            android:id="@+id/vpnShield"
+            style="@style/IconBtn"
+            android:layout_marginLeft="10dp"
+            android:contentDescription="VPN"
+            android:src="@drawable/ic_shield"
+            android:visibility="gone" />
+        <ImageButton
             android:id="@+id/search"
             style="@style/IconBtn"
             android:contentDescription="Cerca"

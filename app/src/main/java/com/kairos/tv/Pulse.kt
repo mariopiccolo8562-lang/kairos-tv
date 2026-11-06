@@ -109,6 +109,6 @@ object Pulse {
         if (!s.active) { a?.goActivation(); return }
         Vpns.apply(a)
         if (App.top !is PlayerActivity) Sync.start() // mai durante la visione
-        a?.onStateChanged()
+        a?.stateChanged()
     }
 }

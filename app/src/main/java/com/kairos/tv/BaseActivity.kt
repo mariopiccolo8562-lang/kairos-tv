@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
+import android.widget.ImageView
 import android.widget.TextView
 
 /** Base di tutte le schermate: schermo intero, stato dell'abbonamento, VPN, «Disconnetti» dal pannello */
@@ -15,9 +16,47 @@ abstract class BaseActivity : Activity() {
     private val clockTick = object : Runnable {
         override fun run() {
             clockView?.text = Ui.hm(System.currentTimeMillis())
+            shieldRefresh()
             App.main.postDelayed(this, 20_000)
         }
     }
+    private var shieldView: ImageView? = null
+
+    /** Scudo VPN nella barra in alto. Compare solo se il fornitore lo ha permesso dal pannello: VPN «Consentita» + permesso
+     *  «Accendere/spegnere la VPN». Con «Sempre attiva» è un semplice indicatore (acceso, non si tocca); altrimenti è nascosto. */
+    fun vpnShield(v: ImageView?) {
+        shieldView = v ?: return
+        v.setOnClickListener { vpnToggle() }
+        shieldRefresh()
+    }
+    fun shieldRefresh() {
+        val v = shieldView ?: return
+        val s = Panel.state
+        val ok = s != null && s.active && s.vpnConf.isNotEmpty()
+        val can = ok && s!!.vpnMode == "allow" && s.perm("vpn")
+        val forced = ok && s!!.vpnMode == "force"
+        if (!can && !forced) { v.visibility = View.GONE; return }
+        v.visibility = View.VISIBLE
+        v.isFocusable = can; v.isClickable = can
+        val st = KxVpn.state
+        val on = st == "on" || (forced && KxVpn.active())
+        v.imageTintList = android.content.res.ColorStateList.valueOf(if (on) 0xFF2EE59D.toInt() else if (st == "connecting") 0xFFF5B041.toInt() else 0xCCFFFFFF.toInt())
+        v.alpha = if (on || st == "connecting") 1f else 0.7f
+        v.contentDescription = if (forced) "VPN sempre attiva" else if (on) "VPN attiva: premi per spegnerla" else "VPN spenta: premi per accenderla"
+    }
+    private fun vpnToggle() {
+        val s = Panel.state ?: return
+        if (s.vpnMode == "force") { Ui.toast("La VPN è sempre attiva: lo ha deciso il tuo fornitore"); return }
+        if (!s.perm("vpn")) { Ui.toast("La VPN è gestita dal tuo fornitore"); return }
+        Store.vpnUser = !Store.vpnUser
+        if (Store.vpnUser) Vpns.retry()
+        Ui.toast(if (Store.vpnUser) "Attivo la VPN…" else "VPN spenta")
+        Vpns.apply(this)
+        shieldRefresh()
+        for (ms in longArrayOf(800, 2_000, 4_000, 8_000)) App.main.postDelayed({ if (!isFinishing) shieldRefresh() }, ms)
+    }
+    /** lo stato dal pannello è cambiato: prima lo scudo, poi la schermata */
+    fun stateChanged() { shieldRefresh(); onStateChanged() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,6 +73,7 @@ abstract class BaseActivity : Activity() {
             Vpns.apply(this)
         }
         if (clockView != null) { App.main.removeCallbacks(clockTick); clockTick.run() }
+        shieldRefresh()
         Updater.offer(this) // versione nuova trovata mentre si guardava un canale: la si propone qui
     }
 
