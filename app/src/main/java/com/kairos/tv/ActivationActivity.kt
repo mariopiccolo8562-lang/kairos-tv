@@ -99,7 +99,7 @@ class ActivationActivity : BaseActivity() {
         }
         hero.text = if (s.status == "maintenance") "Manutenzione in corso." else "Attiva la tua TV."
         findViewById<View>(R.id.codeBox).visibility = if (s.status == "maintenance") View.GONE else View.VISIBLE
-        if (!Store.privacyOk && !privacyShown && s.status != "maintenance") { privacyShown = true; showPrivacy() }
+        if (!Store.privacyOk && Remote.privacy != "skip" && !privacyShown && s.status != "maintenance") { privacyShown = true; showPrivacy() }
         // in attesa ogni 12 s (come KAIROS TV); bloccato, scaduto o sospeso: ogni minuto
         later(when (s.status) { "pending" -> 12_000L; "maintenance" -> 30_000L; else -> 60_000L })
     }

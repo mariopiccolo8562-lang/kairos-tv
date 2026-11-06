@@ -1,6 +1,9 @@
 package com.kairos.tv
 
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import com.bumptech.glide.Glide
 import org.json.JSONArray
 import org.json.JSONObject
@@ -32,7 +35,17 @@ object Remote {
     val bgUpdate: Boolean? get() = str("bgupd")?.let { if (it == "on") true else if (it == "off") false else null }
     /** aggiornamento obbligatorio deciso dal pannello: giorni di grazia dal primo avviso, null = il cliente può rimandare */
     val forceDays: Int? get() = when (str("force")) { "now" -> 0; "3d" -> 3; "7d" -> 7; else -> null }
+    /** finestra «Privacy e condizioni»: skip = il fornitore ha deciso di non mostrarla */
+    val privacy: String? get() = str("privacy")?.takeIf { it == "show" || it == "skip" }
     fun imposed(k: String): Boolean = str(k) != null
+
+    /** permesso di Android «Installa app sconosciute» (serve per installare gli aggiornamenti): nessuna app può darselo da sola */
+    fun canInstall(): Boolean = Build.VERSION.SDK_INT < 26 || App.I.packageManager.canRequestPackageInstalls()
+    fun openInstallPerm() {
+        Ui.toast("Attiva «Consenti da questa fonte», poi premi INDIETRO")
+        val tries = listOf(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + App.I.packageName)), Intent(Settings.ACTION_SECURITY_SETTINGS), Intent(Settings.ACTION_SETTINGS))
+        for (i in tries) { try { App.I.startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); return } catch (_: Exception) {} }
+    }
 
     /** nuova configurazione dal pannello: si salva; se cambia la modalità leggera l'app si riavvia (mai durante la visione) */
     fun apply(rc: JSONObject?, rcv: String) {
@@ -62,6 +75,7 @@ object Remote {
         .put("liteOn", if (App.max) "max" else if (App.lite) "on" else "off")
         .put("preview", Store.preview)
         .put("bgupd", if (Store.bgUpdate) "on" else "off")
+        .put("inst", if (canInstall()) "on" else "off")
 
     /** risposta del battito: configurazione e comandi */
     fun onBeat(j: JSONObject) {
@@ -89,6 +103,7 @@ object Remote {
                     ack(id, true, "impostazioni aperte")
                 }
                 "update" -> Updater.fromPanel { info -> ack(id, true, info) }
+                "perm" -> if (canInstall()) ack(id, true, "permesso già concesso") else if (watching) ack(id, false, "visione in corso: rimandato") else { openInstallPerm(); ack(id, true, "schermata del permesso aperta sulla TV") }
                 "exit" -> { ack(id, true, "chiusa"); App.main.postDelayed({ try { App.top?.finishAffinity() } catch (_: Exception) {}; App.main.postDelayed({ exitProcess(0) }, 300) }, 700) }
                 else -> ack(id, false, "comando non supportato")
             }

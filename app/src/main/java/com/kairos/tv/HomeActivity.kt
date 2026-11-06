@@ -13,6 +13,11 @@ class HomeActivity : BrowseActivity() {
     override fun onResume() {
         super.onResume()
         if (!isFinishing) messages()
+        // aggiornamenti: Android chiede al cliente il permesso una volta; lo guidiamo noi (al massimo una volta a settimana)
+        if (!isFinishing && !Remote.canInstall() && System.currentTimeMillis() - Store.permAskT > 7 * 86_400_000L) {
+            Store.permAskT = System.currentTimeMillis()
+            Ui.dialog(this, "Aggiornamenti automatici", "Per ricevere da sola le nuove versioni, Android chiede il tuo permesso una volta sola.\n\nPremi «Apri», attiva «Consenti da questa fonte» e poi torna indietro.", "Apri", "Dopo") { Remote.openInstallPerm() }
+        }
     }
 
     override fun onStateChanged() {
