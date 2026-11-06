@@ -81,6 +81,7 @@ object Updater {
         val ver = apk?.optString("version", "") ?: ""
         if (code > BuildConfig.VERSION_CODE && url.startsWith("https://")) {
             val u = Upd(code, ver, url)
+            firstSeen(u)
             if (pending?.code != code) { ready = null; prefetchFailed = 0 }
             pending = u
             staged(u)?.let { ready = it } // già scaricato in un'apertura precedente
@@ -88,7 +89,7 @@ object Updater {
             ui { if (manual != null) prompt(manual, u) else offer(App.top) }
             return u
         }
-        if (apk != null) { pending = null; ready = null }
+        if (apk != null) { pending = null; ready = null; try { lock?.dismiss() } catch (_: Exception) {}; lock = null }
         else if (manual == null) lastCheck = SystemClock.elapsedRealtime() - 55 * 60_000L // rete giù: si riprova tra 5 minuti
         if (manual != null) ui { Ui.toast(if (apk == null) "Impossibile controllare gli aggiornamenti adesso" else "Hai già l'ultima versione (${BuildConfig.VERSION_NAME})") }
         return null
@@ -162,18 +163,53 @@ object Updater {
         ApkCheck.verify(App.I, out)?.let { msg -> out.delete(); throw Exception(msg) }
     }
 
-    /** propone la versione nuova (una volta per apertura) appena si è in un menu; ogni schermata la chiama all'apertura */
+    /** primo avviso al cliente di [u]: da lì contano i giorni di grazia dell'aggiornamento obbligatorio */
+    private fun firstSeen(u: Upd): Long {
+        if (Store.updFirstCode != u.code || Store.updFirstAt == 0L) { Store.updFirstCode = u.code; Store.updFirstAt = System.currentTimeMillis() }
+        return Store.updFirstAt
+    }
+
+    /** l'app va bloccata: termine scaduto e APK già scaricato e verificato (mai per un problema di rete) */
+    fun must(): Boolean {
+        val u = pending ?: return false
+        val days = Remote.forceDays ?: return false
+        if (ready?.exists() != true) return false
+        return System.currentTimeMillis() - firstSeen(u) >= days * 86_400_000L
+    }
+
+    /** propone la versione nuova (una volta per apertura, sempre se obbligatoria) appena si è in un menu; ogni schermata la chiama all'apertura */
     fun offer(a: Activity?) {
         val u = pending ?: return
         if (a == null || a.isFinishing || a is PlayerActivity) return
+        if (must()) { if (!busy.get()) prompt(a, u); return }
         if (askedCode == u.code || busy.get()) return
         askedCode = u.code
         prompt(a, u)
     }
 
+    @Volatile private var lock: AlertDialog? = null
+
     private fun prompt(a: Activity, u: Upd) {
         if (a.isFinishing) return
+        firstSeen(u)
         val r = ready
+        if (must() && r != null) {
+            // aggiornamento obbligatorio: si va avanti solo installando (niente «Più tardi», il tasto indietro non chiude)
+            if (lock?.isShowing == true && lock?.ownerActivity === a) return
+            try { lock?.dismiss() } catch (_: Exception) {}
+            val d = AlertDialog.Builder(a)
+                .setTitle("Aggiornamento ${u.ver} necessario")
+                .setMessage("Per continuare a usare ${a.getString(R.string.app_name)} va installata la versione nuova: è già scaricata e verificata. Premi Installa e conferma nella schermata di Android, ci vuole meno di un minuto.")
+                .setCancelable(false)
+                .setPositiveButton("Installa ora", null)
+                .setNegativeButton("Chiudi l'app") { _, _ -> a.finishAffinity() }
+                .create()
+            d.setOwnerActivity(a)
+            d.setOnShowListener { d.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener { install(a, r) } } // la finestra resta finché l'installer non riavvia l'app
+            lock = d
+            try { d.show() } catch (_: Exception) {}
+            return
+        }
         if (r != null && r.exists()) {
             Ui.dialog(a, "Aggiornamento ${u.ver} pronto", "La versione nuova di ${a.getString(R.string.app_name)} è già scaricata e verificata: premi Installa e conferma nella schermata di Android. Ci vuole meno di un minuto.", "Installa ora", "Più tardi") {
                 install(a, r)

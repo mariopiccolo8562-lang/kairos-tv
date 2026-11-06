@@ -30,6 +30,8 @@ object Remote {
     val preview: String? get() = str("preview")?.takeIf { it == "click" || it == "off" }
     /** aggiornamento in background imposto dal pannello (on | off) */
     val bgUpdate: Boolean? get() = str("bgupd")?.let { if (it == "on") true else if (it == "off") false else null }
+    /** aggiornamento obbligatorio deciso dal pannello: giorni di grazia dal primo avviso, null = il cliente può rimandare */
+    val forceDays: Int? get() = when (str("force")) { "now" -> 0; "3d" -> 3; "7d" -> 7; else -> null }
     fun imposed(k: String): Boolean = str(k) != null
 
     /** nuova configurazione dal pannello: si salva; se cambia la modalità leggera l'app si riavvia (mai durante la visione) */
