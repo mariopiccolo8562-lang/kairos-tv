@@ -60,8 +60,9 @@ object Pulse {
         lastHb = now
         val screen = App.top?.javaClass?.simpleName?.removeSuffix("Activity")?.lowercase() ?: ""
         val st2 = if (w != null) try { stats?.invoke() } catch (_: Exception) { null } else null
-        bg {
-            val j = Panel.heartbeat(w, kickAck, KxVpn.state == "on", screen, st2) ?: return@bg
+        // sui thread di rete: il battito non resta in coda dietro alle letture dell'archivio
+        net {
+            val j = Panel.heartbeat(w, kickAck, KxVpn.state == "on", screen, st2) ?: return@net
             handle(j)
         }
     }

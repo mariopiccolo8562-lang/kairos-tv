@@ -90,9 +90,12 @@ object Sync {
             val jobs = ArrayList<Pair<Int, String>>()
             for (part in parts) pls.forEachIndexed { i, p -> if (p.isXtream || part == "live") jobs.add(i to part) }
             val failed = HashSet<String>()
+            // primo caricamento (archivio vuoto): i canali servono subito; tutto il resto aspetta la fine della visione
+            val firstLoad = Db.isEmpty()
             jobs.forEachIndexed { n, (i, part) ->
                 val p = pls[i]
                 if (failed.contains(p.id)) return@forEachIndexed // server che non risponde: non si insiste
+                if (part != "live" || !firstLoad) awaitNoPlayer()
                 val from = n * 100 / jobs.size
                 val span = 100 / jobs.size
                 val step = { v: Int -> setPct(from + v * span / 100) }
@@ -127,6 +130,17 @@ object Sync {
             pct = 100
             phase++
             emit(true)
+        }
+    }
+
+    /**
+     * Niente scaricamenti pesanti (decine di MB) mentre un lettore è attivo, a schermo intero o nel riquadro:
+     * si aspetta la chiusura della visione (controllo ogni 3 s, al massimo 30 minuti), poi si riparte.
+     */
+    private fun awaitNoPlayer() {
+        val until = System.currentTimeMillis() + 30 * 60_000L
+        while ((App.top is PlayerActivity || Players.previewing) && System.currentTimeMillis() < until) {
+            try { Thread.sleep(3_000) } catch (_: InterruptedException) { return }
         }
     }
 

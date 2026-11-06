@@ -144,6 +144,19 @@ object Store {
         get() = p.getLong("liveId", 0)
         set(v) = p.edit().putLong("liveId", v).apply()
 
+    /* ---------------- Kairos Adaptive (vedi Line) ---------------- */
+    /** classe del dispositivo D / N / O, calcolata una volta */
+    var devCls: String
+        get() = s("devCls")
+        set(v) = put("devCls", v)
+    /** classe della linea (weak / normal / good), data del giudizio e banda misurata in bit/s */
+    val lineCls: String get() = s("lineCls")
+    val lineAt: Long get() = p.getLong("lineAt", 0)
+    val bw: Long get() = p.getLong("bw", 0)
+    fun saveLine(cls: String, at: Long, bw: Long) {
+        p.edit().putString("lineCls", cls).putLong("lineAt", at).putLong("bw", bw).apply()
+    }
+
     var seenMsgs: Set<String>
         get() = p.getStringSet("seenMsgs", emptySet()) ?: emptySet()
         set(v) = p.edit().putStringSet("seenMsgs", HashSet(v)).apply()

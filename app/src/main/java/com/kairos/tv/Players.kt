@@ -8,8 +8,10 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
@@ -18,60 +20,117 @@ import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.video.MediaCodecVideoRenderer
 import androidx.media3.exoplayer.video.VideoRendererEventListener
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory
 
-/** ExoPlayer configurato per IPTV su dispositivi anche vecchi */
+/** ExoPlayer configurato per IPTV su dispositivi anche vecchi (Kairos Adaptive v1: tutto dipende dalla classe effettiva) */
 @OptIn(UnstableApi::class)
 object Players {
-    /** [soft] = decodifica software (rimedio quando il decoder hardware si blocca) */
-    fun build(ctx: Context, live: Boolean, soft: Boolean = false, preview: Boolean = false): ExoPlayer {
+    /** buffer per classe (KAIROS_ADAPTIVE §2): min / max / avvio / ripresa in ms, tetto in MB, back buffer in ms */
+    class Buf(val min: Int, val max: Int, val start: Int, val rebuffer: Int, val mb: Int, val back: Int)
+
+    fun buf(live: Boolean, cls: Int): Buf = if (live) when (cls) {
+        Line.WEAK -> Buf(12_000, 30_000, 1_500, 6_000, 16, 0)
+        Line.GOOD -> Buf(15_000, 60_000, 800, 3_000, 32, 0)
+        else -> Buf(15_000, 50_000, 1_000, 4_000, 24, 0)
+    } else when (cls) {
+        Line.WEAK -> Buf(20_000, 40_000, 2_500, 4_000, 32, 6_000)
+        Line.GOOD -> Buf(25_000, 90_000, 800, 2_500, 64, 12_000)
+        else -> Buf(20_000, 60_000, 1_000, 3_000, 48, 10_000)
+    }
+
+    /** tetto di bitrate dell'ABR per classe (§4): sotto il tetto l'ABR resta attivo */
+    fun maxBitrate(cls: Int): Int = if (cls == Line.WEAK) 5_000_000 else Int.MAX_VALUE
+
+    /** anteprima nella lista canali in corso (niente lavori di fondo nel frattempo) */
+    @Volatile var previewing = false
+
+    @Volatile private var sharedMeter: DefaultBandwidthMeter? = null
+    /** stima iniziale del misuratore condiviso: un campione uguale a questa non è una misura */
+    @Volatile var meterInitial = 0L
+        private set
+
+    /** un solo misuratore per app: ciò che ha imparato un canale HLS vale per il successivo (l'anteprima ne ha uno suo) */
+    fun meterFor(ctx: Context, cls: Int): DefaultBandwidthMeter {
+        sharedMeter?.let { return it }
+        synchronized(this) {
+            sharedMeter?.let { return it }
+            val init = Line.initialBps(cls)
+            val m = DefaultBandwidthMeter.Builder(ctx.applicationContext).setInitialBitrateEstimate(init).build()
+            meterInitial = init
+            sharedMeter = m
+            return m
+        }
+    }
+
+    /** [soft] = decodifica software (rimedio quando il decoder hardware si blocca); [cls] = classe effettiva (Line.cls()) */
+    fun build(ctx: Context, live: Boolean, soft: Boolean = false, preview: Boolean = false, cls: Int = Line.cls()): ExoPlayer {
         val http = DefaultHttpDataSource.Factory()
             .setUserAgent(Http.UA)
             .setAllowCrossProtocolRedirects(true)
-            .setConnectTimeoutMs(15_000)
+            .setConnectTimeoutMs(8_000) // con IPv6 morto si perderebbe tutto il timeout prima di passare all'IPv4
             .setReadTimeoutMs(20_000)
+        // flussi progressivi (TS in diretta, film mp4/mkv): arrivano alla velocità del canale, o frenati dal buffer pieno,
+        // non alla velocità della linea: il misuratore di banda non li conta (misura solo i segmenti HLS)
+        val resolver = ResolvingDataSource.Resolver { spec ->
+            if (spec.isFlagSet(DataSpec.FLAG_DONT_CACHE_IF_LENGTH_UNKNOWN)) spec.buildUpon().setFlags(spec.flags or DataSpec.FLAG_MIGHT_NOT_USE_FULL_NETWORK_SPEED).build() else spec
+        }
         val extractors = DefaultExtractorsFactory()
             .setTsExtractorFlags(DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES or DefaultTsPayloadReaderFactory.FLAG_DETECT_ACCESS_UNITS)
-        val sources = DefaultMediaSourceFactory(DefaultDataSource.Factory(ctx, http), extractors)
-        val lite = App.lite
-        // memoria per il video: tetto basso sulle chiavette da 1 GB, così il sistema non chiude l'app
-        // anteprima nella lista canali: pochi secondi di memoria, si guarda per qualche istante
+        val sources = DefaultMediaSourceFactory(DefaultDataSource.Factory(ctx, ResolvingDataSource.Factory(http, resolver)), extractors)
+        // HLS in diretta (§3): più lontani dal bordo e senza rincorsa sulle linee deboli, altrimenti i buffer sono irraggiungibili
+        if (live && !preview) {
+            when (cls) {
+                Line.WEAK -> sources.setLiveTargetOffsetMs(20_000).setLiveMinSpeed(1f).setLiveMaxSpeed(1f)
+                Line.NORMAL -> sources.setLiveTargetOffsetMs(12_000).setLiveMaxSpeed(1.02f)
+            }
+        }
+        // memoria per il video: il tetto in byte è la vera protezione dagli OOM sulle chiavette (con «true» il lettore
+        // lo ignorerebbe finché non raggiunge minBuffer). Anteprima: pochi secondi, si guarda per qualche istante
         val load = if (preview) DefaultLoadControl.Builder()
             .setBufferDurationsMs(2_000, 5_000, 800, 1_500)
             .setTargetBufferBytes(3 shl 20)
             .setPrioritizeTimeOverSizeThresholds(false)
             .setBackBuffer(0, false)
             .build()
-        else DefaultLoadControl.Builder()
-            .setBufferDurationsMs(
-                15_000,
-                if (live) (if (lite) 30_000 else 50_000) else (if (lite) 40_000 else 60_000),
-                1_500,
-                3_000,
-            )
-            .setTargetBufferBytes((if (lite) 16 else if (live) 24 else 40) shl 20)
-            .setPrioritizeTimeOverSizeThresholds(!lite)
-            .setBackBuffer(if (live || lite) 0 else 10_000, false)
-            .build()
+        else {
+            val b = buf(live, cls)
+            DefaultLoadControl.Builder()
+                .setBufferDurationsMs(b.min, b.max, b.start, b.rebuffer)
+                .setTargetBufferBytes(b.mb shl 20)
+                .setPrioritizeTimeOverSizeThresholds(false)
+                .setBackBuffer(b.back, false)
+                .build()
+        }
         val renderers = KxRenderersFactory(ctx)
             .setEnableDecoderFallback(true)
             .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF)
         if (soft) renderers.setMediaCodecSelector { mime, secure, tunneling ->
             MediaCodecUtil.getDecoderInfos(mime, secure, tunneling).sortedBy { if (it.softwareOnly) 0 else 1 }
         }
-        // stima iniziale prudente sulle chiavette: i canali HLS con più qualità partono subito e poi salgono
-        val meter = DefaultBandwidthMeter.Builder(ctx).setInitialBitrateEstimate(if (lite) 2_500_000L else 6_000_000L).build()
-        val selector = DefaultTrackSelector(ctx)
+        // stima iniziale: la banda salvata (×0,8) oppure 2 / 6 / 12 Mbps per classe; l'anteprima non insegna niente alla linea
+        val meter = if (preview) DefaultBandwidthMeter.Builder(ctx).setInitialBitrateEstimate(Line.initialBps(cls)).build() else meterFor(ctx, cls)
+        // ABR nei flussi HLS a più qualità (§4): quota di banda usabile e tempo prima di salire, per classe
+        val abr = when (cls) {
+            Line.WEAK -> AdaptiveTrackSelection.Factory(15_000, AdaptiveTrackSelection.DEFAULT_MAX_DURATION_FOR_QUALITY_DECREASE_MS, AdaptiveTrackSelection.DEFAULT_MIN_DURATION_TO_RETAIN_AFTER_DISCARD_MS, 0.55f)
+            Line.GOOD -> AdaptiveTrackSelection.Factory(6_000, AdaptiveTrackSelection.DEFAULT_MAX_DURATION_FOR_QUALITY_DECREASE_MS, AdaptiveTrackSelection.DEFAULT_MIN_DURATION_TO_RETAIN_AFTER_DISCARD_MS, 0.80f)
+            else -> AdaptiveTrackSelection.Factory(10_000, AdaptiveTrackSelection.DEFAULT_MAX_DURATION_FOR_QUALITY_DECREASE_MS, AdaptiveTrackSelection.DEFAULT_MIN_DURATION_TO_RETAIN_AFTER_DISCARD_MS, 0.70f)
+        }
+        val selector = DefaultTrackSelector(ctx, abr)
         // niente qualità più alta dello schermo (una TV 720p non scarica il 1080p)
         selector.setParameters(selector.buildUponParameters().setViewportSizeToPhysicalDisplaySize(ctx, true).setPreferredAudioLanguage("it"))
         // anteprima: nei canali HLS con più qualità si prende la più bassa adatta al riquadro
         if (preview) selector.setParameters(selector.buildUponParameters().setMaxVideoSize(854, 480).setMaxVideoBitrate(1_500_000))
-        // «Leggerissima»: con i flussi a più qualità si resta a 720p, il decoder delle chiavette vecchie respira
-        else if (App.max) selector.setParameters(selector.buildUponParameters().setMaxVideoSize(1280, 720))
+        else {
+            // classe debole: tetto 1080p e 5 Mbps (mai forceHighestSupportedBitrate: sotto il tetto l'ABR resta attivo)
+            if (cls == Line.WEAK) selector.setParameters(selector.buildUponParameters().setMaxVideoSize(1920, 1080).setMaxVideoBitrate(maxBitrate(cls)))
+            // «Leggerissima»: con i flussi a più qualità si resta a 720p, il decoder delle chiavette vecchie respira
+            if (App.max) selector.setParameters(selector.buildUponParameters().setMaxVideoSize(1280, 720))
+        }
         val p = ExoPlayer.Builder(ctx, renderers)
             .setBandwidthMeter(meter)
             .setTrackSelector(selector)
@@ -82,11 +141,17 @@ object Players {
         return p
     }
 
-    fun item(url: String): MediaItem {
+    /** il flusso è HLS (segmenti) e non TS / progressivo; [hls] = indirizzo senza estensione che si è rivelato HLS */
+    fun isHls(url: String, hls: Boolean = false): Boolean {
+        val low = url.lowercase().substringBefore('?')
+        return hls || low.endsWith(".m3u8") || low.endsWith(".m3u")
+    }
+
+    fun item(url: String, hls: Boolean = false): MediaItem {
         val b = MediaItem.Builder().setUri(Uri.parse(url))
         val low = url.lowercase().substringBefore('?')
         when {
-            low.endsWith(".m3u8") || low.endsWith(".m3u") -> b.setMimeType(MimeTypes.APPLICATION_M3U8)
+            isHls(url, hls) -> b.setMimeType(MimeTypes.APPLICATION_M3U8)
             low.endsWith(".ts") -> b.setMimeType(MimeTypes.VIDEO_MP2T)
         }
         return b.build()

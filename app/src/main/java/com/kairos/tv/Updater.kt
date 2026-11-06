@@ -111,17 +111,26 @@ object Updater {
         (App.I.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager).isActiveNetworkMetered
     } catch (_: Exception) { false }
 
+    /** visione iniziata durante lo scaricamento in background: si interrompe e si riprova più tardi */
+    private class Paused : Exception()
+
+    /** un lettore è attivo (schermo intero o anteprima nella lista canali): la banda serve al video */
+    private fun watching(): Boolean = App.top is PlayerActivity || Players.previewing
+
     /** scaricamento in background (chiamato da un thread di lavoro): nessuna finestra; quando è pronto si propone «Installa ora» */
     private fun prefetch(u: Upd) {
-        if (App.top is PlayerActivity) return // mai durante la visione: la banda serve al video
+        if (watching()) return // mai durante la visione: la banda serve al video
         if (!busy.compareAndSet(false, true)) return
         try {
             val out = fileFor(u)
-            fetch(u.url, out, null)
+            fetch(u.url, out, null) { watching() }
             ready = out
             prefetchFailed = 0
             cleanOld(out)
             ui { askedCode = 0; offer(App.top) }
+        } catch (_: Paused) {
+            try { fileFor(u).delete() } catch (_: Exception) {}
+            lastCheck = SystemClock.elapsedRealtime() - 55 * 60_000L // non è un errore: si riprova tra 5 minuti
         } catch (_: Exception) {
             prefetchFailed++ // si riprova al prossimo controllo (massimo tre volte per versione)
         } finally { busy.set(false) }
@@ -132,8 +141,8 @@ object Updater {
         try { dir().listFiles()?.forEach { if (it != keep && it.name.endsWith(".apk")) it.delete() } } catch (_: Exception) {}
     }
 
-    /** scarica [url] in [out] e lo verifica; [progress] riceve 0-99 */
-    private fun fetch(url: String, out: File, progress: ((Int) -> Unit)?) {
+    /** scarica [url] in [out] e lo verifica; [progress] riceve 0-99; [pause] = vero se bisogna interrompere (visione iniziata) */
+    private fun fetch(url: String, out: File, progress: ((Int) -> Unit)?, pause: (() -> Boolean)? = null) {
         val c = Http.open(url, connectMs = 20_000, readMs = 30_000)
         try {
             if (c.responseCode != 200) throw Exception(if (c.responseCode == 404) "file non trovato (HTTP 404)" else "HTTP ${c.responseCode}")
@@ -146,6 +155,7 @@ object Updater {
                     while (true) {
                         val n = input.read(buf)
                         if (n < 0) break
+                        if (pause != null && pause()) throw Paused()
                         fo.write(buf, 0, n)
                         done += n
                         if (total > 0 && progress != null) {
@@ -242,7 +252,7 @@ object Updater {
         bg {
             try {
                 val out = if (u != null && u.url == url) fileFor(u) else File(dir(), "kairos-tv-update.apk")
-                fetch(url, out) { p -> ui { bar.progress = p; txt.text = "Scaricamento… $p%" } }
+                fetch(url, out, { p -> ui { bar.progress = p; txt.text = "Scaricamento… $p%" } })
                 if (u != null && u.url == url) ready = out
                 ui { try { d?.dismiss() } catch (_: Exception) {}; install(a, out) }
             } catch (e: Exception) {
