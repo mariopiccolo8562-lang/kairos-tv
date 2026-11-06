@@ -7,7 +7,7 @@ name: App Kairos TV (APK)
 on:
   push:
     branches: ['**']
-    tags: ['v*']
+    tags: ['v*', 'V*', '[0-9]*']   # vale anche «V3.0.2» o «3.0.1»: la release si pubblica lo stesso
   workflow_dispatch:
 
 permissions:
@@ -35,7 +35,7 @@ jobs:
           if [ -n "$KS_B64" ]; then
             echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
             echo "KS_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
-          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          elif [[ "$GITHUB_REF" =~ ^refs/tags/[vV]?[0-9] ]]; then
             echo "::error::Mancano i segreti della chiave di firma (vedi README): senza, gli aggiornamenti non si installerebbero sopra la versione precedente"
             exit 1
           else
@@ -44,9 +44,10 @@ jobs:
 
       - name: Versione
         run: |
-          if [[ "$GITHUB_REF" =~ ^refs/tags/v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+          if [[ "$GITHUB_REF" =~ ^refs/tags/[vV]?([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
             V="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}"
             CODE=$(( BASH_REMATCH[1] * 10000 + BASH_REMATCH[2] * 100 + BASH_REMATCH[3] ))   # es. 1.2.3 → 10203
+            echo "IS_TAG=1" >> "$GITHUB_ENV"
           else
             V="0.0.${GITHUB_RUN_NUMBER}"; CODE=${GITHUB_RUN_NUMBER}                          # build di prova
           fi
@@ -71,7 +72,7 @@ jobs:
           path: kairos-tv.apk
 
       - name: File per l'aggiornamento automatico
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/') && env.IS_TAG == '1'
         run: |
           URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/kairos-tv.apk"
           jq -n --arg v "$VERSION_NAME" --argjson c "$VERSION_CODE" --arg u "$URL" --arg d "$(date -u +%FT%TZ)" \
@@ -79,7 +80,7 @@ jobs:
           cat kairos-tv.json
 
       - name: Pubblica la release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/') && env.IS_TAG == '1'
         uses: softprops/action-gh-release@v2
         with:
           files: |
