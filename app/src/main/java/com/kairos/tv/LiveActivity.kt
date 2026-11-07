@@ -196,6 +196,10 @@ class LiveActivity : BaseActivity() {
             if (want > 0) {
                 var n = 0
                 while (cur.moveToNext()) { if (cur.getLong(0) == want) { at = n; break }; n++ }
+                // la parte di lista che si vedrà subito (l'inizio, o intorno al canale) si legge qui e non sul thread
+                // dell'interfaccia: dopo la ricerca il cursore è più avanti e rileggere da capo una lista di migliaia di canali
+                // ordinata per numero bloccherebbe lo schermo
+                if (at < 0) cur.moveToFirst() else { cur.moveToPosition(maxOf(0, at - 20)); cur.moveToPosition(minOf(cur.count - 1, at + 20)) }
             }
             ui {
                 if (isFinishing || my != seq) { cur.close(); return@ui }

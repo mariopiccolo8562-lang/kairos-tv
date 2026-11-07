@@ -75,6 +75,7 @@ class App : Application() {
         return 20L shl 20
     }
 
+    @Suppress("DEPRECATION") // i livelli «RUNNING_*» arrivano ancora sui dispositivi fino ad Android 13
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         // memoria che scarseggia (o app in sfondo): le immagini in cache si buttano subito, video e liste vengono prima

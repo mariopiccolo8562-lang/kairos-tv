@@ -49,6 +49,13 @@ object Db {
 
     fun clear(db: SQLiteDatabase) {
         listOf("cat", "live", "vod", "series", "ep").forEach { db.execSQL("DELETE FROM $it") }
+        forget()
+    }
+
+    /** archivio svuotato: categorie e totali in memoria da ricontare */
+    fun forget() {
+        synchronized(catMemo) { catMemo.clear() }
+        synchronized(countMemo) { countMemo.clear() }
     }
 
     /** toglie i contenuti di una playlist (prima di ricaricarla) */
@@ -112,8 +119,30 @@ object Db {
     /* ---------------- categorie ---------------- */
     class Cat(val id: String, val name: String, var count: Int = -1, val adult: Boolean = false)
 
+    /**
+     * Categorie e totali già contati, in memoria: contarli legge tutta la tabella (decine di migliaia di righe su disco),
+     * e lo si rifà solo quando le liste cambiano davvero ([Sync.ver]) o cambiano playlist e profilo.
+     */
+    private val catMemo = HashMap<String, List<Cat>>()
+    private val countMemo = HashMap<String, Int>()
+
+    private fun memoKey(kind: String, pls: List<String>, kids: Boolean): String = kind + "|" + Sync.ver(kind) + "|" + kids + "|" + pls.joinToString(",")
+
+    private fun copyOf(list: List<Cat>): List<Cat> = list.map { Cat(it.id, it.name, it.count, it.adult) }
+
     fun cats(kind: String, pls: List<String>, kids: Boolean): List<Cat> {
         if (pls.isEmpty()) return emptyList()
+        val key = memoKey(kind, pls, kids)
+        synchronized(catMemo) { catMemo[key] }?.let { return copyOf(it) }
+        val out = readCats(kind, pls, kids)
+        synchronized(catMemo) {
+            if (catMemo.size >= 12) catMemo.clear()
+            catMemo[key] = copyOf(out)
+        }
+        return out
+    }
+
+    private fun readCats(kind: String, pls: List<String>, kids: Boolean): List<Cat> {
         val q = base(pls, kids)
         val out = ArrayList<Cat>()
         val table = if (kind == "live") "live" else kind
@@ -134,8 +163,15 @@ object Db {
 
     fun count(table: String, pls: List<String>, kids: Boolean): Int {
         if (pls.isEmpty()) return 0
+        val key = memoKey(table, pls, kids)
+        synchronized(countMemo) { countMemo[key] }?.let { return it }
         val q = base(pls, kids)
-        r.rawQuery("SELECT COUNT(*) FROM $table WHERE ${q.where}", q.args.toTypedArray()).use { c -> return if (c.moveToFirst()) c.getInt(0) else 0 }
+        val n = r.rawQuery("SELECT COUNT(*) FROM $table WHERE ${q.where}", q.args.toTypedArray()).use { c -> if (c.moveToFirst()) c.getInt(0) else 0 }
+        synchronized(countMemo) {
+            if (countMemo.size >= 12) countMemo.clear()
+            countMemo[key] = n
+        }
+        return n
     }
 
     fun isEmpty(): Boolean = try {
