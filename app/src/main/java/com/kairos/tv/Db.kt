@@ -130,16 +130,23 @@ object Db {
 
     private fun copyOf(list: List<Cat>): List<Cat> = list.map { Cat(it.id, it.name, it.count, it.adult) }
 
+    /** lo stesso conteggio chiesto due volte insieme (es. Home e menu delle categorie): il secondo aspetta il primo */
+    private val catLocks = HashMap<String, Any>()
+    private fun lockOf(key: String): Any = synchronized(catLocks) { if (catLocks.size >= 24) catLocks.clear(); catLocks.getOrPut(key) { Any() } }
+
     fun cats(kind: String, pls: List<String>, kids: Boolean): List<Cat> {
         if (pls.isEmpty()) return emptyList()
         val key = memoKey(kind, pls, kids)
         synchronized(catMemo) { catMemo[key] }?.let { return copyOf(it) }
-        val out = readCats(kind, pls, kids)
-        synchronized(catMemo) {
-            if (catMemo.size >= 12) catMemo.clear()
-            catMemo[key] = copyOf(out)
+        synchronized(lockOf(key)) {
+            synchronized(catMemo) { catMemo[key] }?.let { return copyOf(it) }
+            val out = readCats(kind, pls, kids)
+            synchronized(catMemo) {
+                if (catMemo.size >= 12) catMemo.clear()
+                catMemo[key] = copyOf(out)
+            }
+            return out
         }
-        return out
     }
 
     private fun readCats(kind: String, pls: List<String>, kids: Boolean): List<Cat> {
