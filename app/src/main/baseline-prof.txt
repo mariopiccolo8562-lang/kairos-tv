@@ -1,0 +1,33 @@
+# Profilo di base (scritto a mano): codice compilato in anticipo da Android al posto dell'interprete.
+# Serve soprattutto ai primi avvii dopo ogni aggiornamento (l'app non arriva dal Play Store, che darebbe il suo profilo):
+# apertura, Home e liste, immagini e primo canale partono già compilati. Lo installa androidx.profileinstaller.
+
+# tutta l'app (avvio, schermate, liste, archivio, pannello, lettore)
+HSPLcom/kairos/tv/**;->**(**)**
+Lcom/kairos/tv/**;
+
+# immagini (locandine e loghi nelle prime righe)
+HSPLcom/bumptech/glide/**;->**(**)**
+Lcom/bumptech/glide/**;
+
+# liste
+HSPLandroidx/recyclerview/widget/**;->**(**)**
+Landroidx/recyclerview/widget/**;
+
+# lettore: avvio di un canale TS/HLS o di un film (ExoPlayer, sorgenti, estrattori usati davvero)
+HSPLandroidx/media3/common/**;->**(**)**
+Landroidx/media3/common/**;
+HSPLandroidx/media3/datasource/**;->**(**)**
+Landroidx/media3/datasource/**;
+HSPLandroidx/media3/exoplayer/**;->**(**)**
+Landroidx/media3/exoplayer/**;
+HSPLandroidx/media3/extractor/*;->**(**)**
+Landroidx/media3/extractor/*;
+HSPLandroidx/media3/extractor/ts/**;->**(**)**
+Landroidx/media3/extractor/ts/**;
+HSPLandroidx/media3/extractor/mp4/**;->**(**)**
+Landroidx/media3/extractor/mp4/**;
+HSPLandroidx/media3/extractor/mkv/**;->**(**)**
+Landroidx/media3/extractor/mkv/**;
+HSPLandroidx/media3/ui/PlayerView*;->**(**)**
+Landroidx/media3/ui/PlayerView*;

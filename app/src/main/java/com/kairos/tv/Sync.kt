@@ -39,20 +39,31 @@ object Sync {
     private fun sig(pls: List<Playlist>): String = pls.joinToString("§") { it.sig() }
 
     @Volatile private var failAt = 0L
+    /** controllo «archivio vuoto?» già in corso fuori dal thread principale */
+    private val probing = java.util.concurrent.atomic.AtomicBoolean(false)
 
-    fun needed(): Boolean {
-        val pls = K.active()
-        if (pls.isEmpty()) return false
-        // dopo un errore si riprova al massimo ogni 30 minuti (o subito con «Aggiorna liste»)
-        if (System.currentTimeMillis() - failAt < 30 * 60_000L) return false
-        return sig(pls) != Store.syncSig || System.currentTimeMillis() - Store.syncAt > 12 * 3600_000L || Db.isEmpty()
-    }
+    /** dopo un errore si riprova al massimo ogni 30 minuti (o subito con «Aggiorna liste») */
+    private fun cooling(): Boolean = System.currentTimeMillis() - failAt < 30 * 60_000L
+
+    /** playlist cambiate o liste di oltre 12 ore: si decide senza toccare il disco */
+    private fun stale(pls: List<Playlist>): Boolean = sig(pls) != Store.syncSig || System.currentTimeMillis() - Store.syncAt > 12 * 3600_000L
 
     fun start(force: Boolean = false) {
         if (running) return
         val pls = K.active()
         if (pls.isEmpty()) return
-        if (!force && !needed()) return
+        if (!force && cooling()) return
+        if (force || stale(pls)) { begin(pls); return }
+        // resta da sapere se l'archivio è vuoto: lo si chiede al database fuori dal thread principale
+        // (all'apertura dell'app aprire il database costa decine di millisecondi sulle chiavette)
+        if (!probing.compareAndSet(false, true)) return
+        bg {
+            val empty = try { Db.isEmpty() } finally { probing.set(false) }
+            if (empty) ui { if (!running && !cooling()) K.active().takeIf { it.isNotEmpty() }?.let { begin(it) } }
+        }
+    }
+
+    private fun begin(pls: List<Playlist>) {
         running = true
         pct = 0
         error = ""

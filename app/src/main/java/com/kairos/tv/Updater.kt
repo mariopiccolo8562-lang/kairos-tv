@@ -46,10 +46,23 @@ object Updater {
     @Volatile private var lastCheck = 0L
     @Volatile private var prefetchFailed = 0
 
+    /**
+     * Controlli e scaricamenti in background su un thread loro, a bassa priorità: non occupano i thread che leggono
+     * l'archivio per le schermate (all'apertura dell'app servono a liste e locandine).
+     */
+    private val exec = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "kl-upd").apply { isDaemon = true; priority = Thread.MIN_PRIORITY } }
+    private fun work(block: () -> Unit) {
+        exec.execute { try { block() } catch (t: Throwable) { android.util.Log.w("KairosTV", "upd", t) } }
+    }
+
+    /** controllo al ritorno in primo piano: non urgente, parte qualche secondo dopo che l'app è comparsa */
+    private val fgCheck = Runnable { maybeCheck(10 * 60_000L) }
+
     /** l'app torna in primo piano: nuovo controllo e, se c'è già una versione nuova, la si propone di nuovo */
     fun onForeground() {
         askedCode = 0
-        maybeCheck(10 * 60_000L)
+        App.main.removeCallbacks(fgCheck)
+        App.main.postDelayed(fgCheck, 5_000)
     }
 
     /** chiamato anche dal battito ogni 20 s: il controllo vero parte solo ogni [gap] */
@@ -58,14 +71,14 @@ object Updater {
         if (lastCheck != 0L && now - lastCheck < gap) return
         if (!checking.compareAndSet(false, true)) return
         lastCheck = now
-        bg { try { check(null) } finally { checking.set(false) } }
+        work { try { check(null) } finally { checking.set(false) } }
     }
 
     /** il pannello chiede l'aggiornamento (upd nel battito o comando «update»): controllo subito, scaricamento in background e proposta */
     fun fromPanel(done: ((String) -> Unit)? = null) {
         if (!checking.compareAndSet(false, true)) { done?.invoke("controllo già in corso"); return }
         lastCheck = SystemClock.elapsedRealtime()
-        bg {
+        work {
             try {
                 val u = check(null, force = true)
                 done?.invoke(if (u == null) "già aggiornata (" + BuildConfig.VERSION_NAME + ")" else when { App.top is PlayerActivity -> "versione " + u.ver + ": proposta a fine visione"; ready != null -> "versione " + u.ver + " pronta: proposta al cliente"; else -> "versione " + u.ver + " in scaricamento" })
@@ -84,7 +97,8 @@ object Updater {
             firstSeen(u)
             if (pending?.code != code) { ready = null; prefetchFailed = 0 }
             pending = u
-            staged(u)?.let { ready = it } // già scaricato in un'apertura precedente
+            // già scaricato in un'apertura precedente; verificato una volta sola (firma e versione: è un lavoro pesante sulle chiavette)
+            if (ready?.exists() != true) staged(u)?.let { ready = it }
             if (ready == null && manual == null && (Store.bgUpdate || force) && (force || !metered()) && prefetchFailed < 3) prefetch(u)
             ui { if (manual != null) prompt(manual, u) else offer(App.top) }
             return u

@@ -30,6 +30,8 @@ class App : Application() {
         I = this
         Store.init(this)
         Db.init(this)
+        // l'archivio si apre subito in sottofondo, mentre compare la prima schermata (mai sul thread principale)
+        bg { Db.r }
         lite = detectLite()
         max = Store.liteMode == "max"
         weak = try { Line.device() == "D" } catch (_: Throwable) { false }

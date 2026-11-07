@@ -68,6 +68,8 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer-hls:1.4.1")
     implementation("androidx.media3:media3-ui:1.4.1")
     implementation("com.github.bumptech.glide:glide:4.16.0")
+    // profilo di base (src/main/baseline-prof.txt) installato al primo avvio: avvio e liste già compilati (libreria piccola)
+    implementation("androidx.profileinstaller:profileinstaller:1.3.1")
     // 1.0.20250531 = ultima con minSdk 21 (stesso motore wireguard-go della versione successiva)
     implementation("com.wireguard.android:tunnel:1.0.20250531")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
