@@ -32,19 +32,20 @@ class App : Application() {
         Db.init(this)
         lite = detectLite()
         max = Store.liteMode == "max"
-        // immagini: memoria e spazio su disco limitati (le chiavette hanno 1 GB di RAM e poco spazio)
+        weak = try { Line.device() == "D" } catch (_: Throwable) { false }
+        // immagini (prima causa di memoria esaurita sulle chiavette da 1 GB): cache in memoria con un tetto per classe e
+        // cache su disco nella cartella cache dell'app (Android la svuota da sola se manca spazio): D 150 MB, N/O 250 MB
         try {
-            val mem = if (max) 4L shl 20 else if (lite) 6L shl 20 else 20L shl 20
+            val mem = imageMemory()
             Glide.init(this, GlideBuilder()
                 .setMemoryCache(LruResourceCache(mem))
                 .setBitmapPool(LruBitmapPool(mem / 2))
-                // cartella predefinita di Glide: la cache della 1.0 (fino a 250 MB) viene ridotta, non lasciata lì
-                .setDiskCache(InternalCacheDiskCacheFactory(this, if (max) 25L shl 20 else if (lite) 40L shl 20 else 120L shl 20))
-                .setDefaultRequestOptions(RequestOptions().format(if (lite) DecodeFormat.PREFER_RGB_565 else DecodeFormat.PREFER_ARGB_8888))
+                .setDiskCache(InternalCacheDiskCacheFactory(this, if (weak) 150L shl 20 else 250L shl 20))
+                .setDefaultRequestOptions(RequestOptions().format(if (lite || weak) DecodeFormat.PREFER_RGB_565 else DecodeFormat.PREFER_ARGB_8888))
                 .setLogLevel(android.util.Log.ERROR))
         } catch (_: Throwable) {}
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
-            override fun onActivityCreated(a: Activity, b: Bundle?) {}
+            override fun onActivityCreated(a: Activity, b: Bundle?) { alive.add(a) }
             override fun onActivityStarted(a: Activity) {
                 started++
                 if (started == 1) Pulse.foreground(true)
@@ -56,13 +57,29 @@ class App : Application() {
                 if (started <= 0) { started = 0; Pulse.foreground(false) }
             }
             override fun onActivitySaveInstanceState(a: Activity, b: Bundle) {}
-            override fun onActivityDestroyed(a: Activity) {}
+            override fun onActivityDestroyed(a: Activity) { alive.remove(a) }
         })
+    }
+
+    /** cache delle immagini in memoria: «Leggerissima» 4 MB, leggera 6 MB, dispositivo debole 1/8 della memoria dell'app
+     *  (al massimo 24 MB), gli altri 20 MB come prima */
+    private fun imageMemory(): Long {
+        if (max) return 4L shl 20
+        if (lite) return 6L shl 20
+        if (weak) {
+            val mc = try { (getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).memoryClass.toLong() } catch (_: Exception) { 128L }
+            return ((mc shl 20) / 8).coerceIn(4L shl 20, 24L shl 20)
+        }
+        return 20L shl 20
     }
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
-        try { Glide.get(this).trimMemory(level) } catch (_: Throwable) {}
+        // memoria che scarseggia (o app in sfondo): le immagini in cache si buttano subito, video e liste vengono prima
+        try {
+            if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) Glide.get(this).clearMemory()
+            else Glide.get(this).trimMemory(level)
+        } catch (_: Throwable) {}
     }
 
     override fun onLowMemory() {
@@ -91,6 +108,10 @@ class App : Application() {
         @Volatile var lite = false
         /** «Leggerissima»: per le chiavette più vecchie (liste senza loghi, immagini più piccole, canali in HD) */
         @Volatile var max = false
+        /** dispositivo debole (classe D di Kairos Adaptive): immagini a 16 bit e più piccole anche fuori dalla modalità leggera */
+        @Volatile var weak = false
+        /** schermate aperte: entrando nel lettore quelle sotto liberano le immagini grandi (vedi [Ui.freeForPlayer]) */
+        val alive: MutableSet<Activity> = java.util.Collections.newSetFromMap(java.util.WeakHashMap<Activity, Boolean>())
         val main = Handler(Looper.getMainLooper())
         val io: ExecutorService = Executors.newFixedThreadPool(3) { r -> Thread(r, "kl-io").apply { isDaemon = true } }
         var started = 0

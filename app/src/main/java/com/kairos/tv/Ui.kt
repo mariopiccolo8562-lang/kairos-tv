@@ -13,7 +13,9 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import android.graphics.drawable.Drawable
 import com.bumptech.glide.Glide
+import com.bumptech.glide.RequestBuilder
 import com.bumptech.glide.load.DecodeFormat
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import java.text.SimpleDateFormat
@@ -68,8 +70,9 @@ object Ui {
         val n = av.removePrefix("a").toIntOrNull() ?: 1
         return AV[(n - 1).mod(AV.size)]
     }
+    private val SPACES = Regex("\\s+")
     fun initials(name: String): String =
-        name.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }.take(2).joinToString("") { it.substring(0, 1).uppercase(Locale.ITALY) }.ifEmpty { "?" }
+        name.trim().split(SPACES).filter { it.isNotEmpty() }.take(2).joinToString("") { it.substring(0, 1).uppercase(Locale.ITALY) }.ifEmpty { "?" }
 
     /** cerchio colorato con le iniziali (profili, account) */
     fun avatar(t: TextView, name: String, av: String, radiusDp: Int) {
@@ -81,16 +84,77 @@ object Ui {
         t.text = initials(name)
     }
 
-    /** immagine ridimensionata alla misura mostrata; a 16 bit in modalità leggera (metà memoria) */
+    /** immagini a 16 bit (metà memoria): modalità leggera o dispositivo debole (classe D di Kairos Adaptive).
+     *  Glide tiene comunque a 32 bit le immagini con trasparenza (loghi PNG) */
+    val rgb565: Boolean get() = App.lite || App.weak
+
+    /**
+     * Immagine decodificata alla misura mostrata, mai all'originale (locandine, sfondi e loghi sono la prima causa di
+     * memoria esaurita sulle chiavette):
+     * - a 16 bit in modalità leggera e sui dispositivi deboli;
+     * - sfondi e riquadri grandi al massimo larghi quanto lo schermo, mai oltre il Full HD (1280 px sui dispositivi deboli);
+     * - immagini di TMDB chieste già nella misura adatta (vedi [tmdb]); se quella non arriva si ripiega sull'indirizzo originale;
+     * - su disco restano sia l'originale (niente nuovi download) sia la versione già ridotta (si rilegge senza rifare la decodifica).
+     */
     fun img(v: ImageView, url: String?, w: Int, h: Int) {
         if (url.isNullOrBlank() || !url.startsWith("http")) {
             Glide.with(v).clear(v)
             v.setImageDrawable(null)
             return
         }
-        var rq = Glide.with(v).load(url).override(w, h).dontAnimate().diskCacheStrategy(DiskCacheStrategy.AUTOMATIC)
-        if (App.lite) rq = rq.format(DecodeFormat.PREFER_RGB_565)
+        var tw = w.coerceAtLeast(1)
+        var th = h.coerceAtLeast(1)
+        val cap = maxSide(v.context)
+        val big = maxOf(tw, th)
+        if (big > cap) { tw = (tw.toLong() * cap / big).toInt().coerceAtLeast(1); th = (th.toLong() * cap / big).toInt().coerceAtLeast(1) }
+        val small = tmdb(url, tw, th)
+        var rq = request(v, small, tw, th)
+        if (small != url) rq = rq.error(request(v, url, tw, th))
         rq.into(v)
+    }
+
+    private fun request(v: ImageView, url: String, w: Int, h: Int): RequestBuilder<Drawable> {
+        var rq = Glide.with(v).load(url).override(w, h).dontAnimate().diskCacheStrategy(DiskCacheStrategy.ALL)
+        if (rgb565) rq = rq.format(DecodeFormat.PREFER_RGB_565)
+        // la stessa trasformazione che Glide sceglierebbe da solo per la vista: vale anche per la richiesta di riserva
+        return when (v.scaleType) {
+            ImageView.ScaleType.CENTER_CROP -> rq.optionalCenterCrop()
+            ImageView.ScaleType.CENTER_INSIDE, ImageView.ScaleType.FIT_XY -> rq.optionalCenterInside()
+            ImageView.ScaleType.FIT_CENTER, ImageView.ScaleType.FIT_START, ImageView.ScaleType.FIT_END -> rq.optionalFitCenter()
+            else -> rq
+        }
+    }
+
+    /** lato più lungo di un'immagine decodificata: quello dello schermo, mai oltre 1920 px (1280 sui dispositivi deboli) */
+    private fun maxSide(c: Context): Int {
+        val dm = c.resources.displayMetrics
+        val screen = maxOf(dm.widthPixels, dm.heightPixels).takeIf { it > 0 } ?: 1920
+        return minOf(screen, if (App.weak) 1280 else 1920)
+    }
+
+    private val TMDB = Regex("^(https?://image\\.tmdb\\.org/t/p/)([^/]+)(/.+)$", RegexOption.IGNORE_CASE)
+    private val TMDB_W = Regex("^w(\\d{2,4})(_and_h\\d+.*)?$", RegexOption.IGNORE_CASE)
+
+    /**
+     * Locandine e sfondi di TMDB (image.tmdb.org/t/p/<misura>/…): si chiede una misura più piccola adatta alla vista,
+     * mai più grande di quella dell'indirizzo. Locandine (viste verticali) w185 o w342, sfondi (viste orizzontali) w780 o w1280;
+     * sui dispositivi deboli al massimo w185 e w780.
+     */
+    fun tmdb(url: String, w: Int, h: Int): String {
+        if (!url.contains("image.tmdb.org", ignoreCase = true)) return url
+        val m = TMDB.find(url) ?: return url
+        val size = m.groupValues[2]
+        val cur = if (size.equals("original", ignoreCase = true)) Int.MAX_VALUE else TMDB_W.find(size)?.groupValues?.get(1)?.toIntOrNull() ?: return url
+        val weak = App.weak
+        val want = if (h >= w) (if (weak || w <= 185) 185 else 342) else (if (weak || w <= 780) 780 else 1280)
+        if (want >= cur) return url
+        return m.groupValues[1] + "w" + want + m.groupValues[3]
+    }
+
+    /** vista uscita dallo schermo (riciclata) o schermata chiusa: via la richiesta, l'immagine torna nella cache con il tetto */
+    fun release(v: ImageView?) {
+        if (v == null) return
+        try { Glide.with(v).clear(v) } catch (_: Exception) {}
     }
 
     fun dialog(a: Activity, title: String, msg: String, ok: String = "OK", cancel: String? = null, onOk: (() -> Unit)? = null): AlertDialog? {
