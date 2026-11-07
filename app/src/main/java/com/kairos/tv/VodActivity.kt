@@ -228,5 +228,8 @@ class VodActivity : BaseActivity() {
             // «Leggerissima»: locandine decodificate più piccole (un terzo della memoria in meno)
             if (App.max) Ui.img(h.img, c.getString(5), posterW * 2 / 3, posterH * 2 / 3) else Ui.img(h.img, c.getString(5), posterW, posterH)
         }
+
+        // locandina uscita dallo schermo: la richiesta si annulla e l'immagine torna nella cache con il tetto
+        override fun onViewRecycled(h: H) { Ui.release(h.img) }
     }
 }

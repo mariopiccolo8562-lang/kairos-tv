@@ -473,5 +473,8 @@ class LiveActivity : BaseActivity() {
                 h.bar.visibility = View.GONE
             }
         }
+
+        // canale uscito dallo schermo: il suo logo non si scarica più (scorrendo migliaia di canali)
+        override fun onViewRecycled(h: H) { Ui.release(h.logo) }
     }
 }

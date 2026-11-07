@@ -93,5 +93,7 @@ class SearchActivity : BaseActivity() {
             val s = Ui.dp(h.itemView.context, 36)
             Ui.img(h.img, x.img, s, s)
         }
+
+        override fun onViewRecycled(h: H) { Ui.release(h.img) }
     }
 }

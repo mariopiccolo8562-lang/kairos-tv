@@ -1,7 +1,9 @@
 package com.kairos.tv
 
+import android.app.Activity
 import android.content.Context
 import android.database.Cursor
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -46,14 +48,57 @@ fun RecyclerView.fast(horizontal: Boolean = false) {
     setHasFixedSize(true)
     setItemViewCacheSize(if (App.lite) 6 else 14)
     if (layoutManager == null) layoutManager = LinearLayoutManager(context, if (horizontal) RecyclerView.HORIZONTAL else RecyclerView.VERTICAL, false)
-    // tasto tenuto premuto: si scorre senza caricare le immagini, che arrivano appena ci si ferma
+    // modalità leggera: si scorre senza caricare le immagini, che arrivano appena ci si ferma (freccia tenuta premuta: vedi FastScroll)
     addOnScrollListener(object : RecyclerView.OnScrollListener() {
         override fun onScrollStateChanged(rv: RecyclerView, state: Int) {
             try {
-                if (state == RecyclerView.SCROLL_STATE_IDLE) Glide.with(rv).resumeRequests() else if (App.lite) Glide.with(rv).pauseRequests()
+                if (state == RecyclerView.SCROLL_STATE_IDLE) { if (!FastScroll.held) Glide.with(rv).resumeRequests() } else if (App.lite) Glide.with(rv).pauseRequests()
             } catch (_: Exception) {}
         }
     })
+}
+
+/**
+ * Scorrimento veloce col telecomando (freccia tenuta premuta), su tutti i dispositivi: i caricamenti delle immagini restano
+ * in pausa finché non la si lascia, poi parte solo quello che è rimasto sullo schermo (niente download e decodifiche di
+ * locandine passate in un attimo). Chiamato da [BaseActivity.dispatchKeyEvent].
+ */
+object FastScroll {
+    var held = false
+        private set
+    private var view: View? = null
+    private val resumeR = Runnable { resume() }
+
+    fun onKey(a: Activity, e: KeyEvent) {
+        when (e.keyCode) {
+            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {}
+            else -> return
+        }
+        if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount > 0) {
+            if (!held) {
+                held = true
+                val v = a.window.decorView
+                view = v
+                try { Glide.with(v).pauseRequests() } catch (_: Exception) {}
+            }
+            // anche se il rilascio del tasto non arriva (finestra di dialogo, telecomandi strani) si riparte da soli
+            App.main.removeCallbacks(resumeR)
+            App.main.postDelayed(resumeR, 400)
+        } else if (e.action == KeyEvent.ACTION_UP && held) {
+            App.main.removeCallbacks(resumeR)
+            App.main.post(resumeR)
+        }
+    }
+
+    /** si riparte: le immagini delle viste rimaste sullo schermo arrivano ora */
+    fun resume() {
+        App.main.removeCallbacks(resumeR)
+        if (!held) return
+        held = false
+        val v = view
+        view = null
+        try { if (v != null) Glide.with(v).resumeRequests() } catch (_: Exception) {}
+    }
 }
 
 /** colonna delle categorie (Diretta, Film, Serie) */

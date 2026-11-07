@@ -3,7 +3,9 @@ package com.kairos.tv
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.view.KeyEvent
 import android.view.View
+import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 
@@ -80,6 +82,24 @@ abstract class BaseActivity : Activity() {
     override fun onPause() {
         super.onPause()
         App.main.removeCallbacks(clockTick)
+        FastScroll.resume() // mai immagini ferme nella schermata dopo
+    }
+
+    /** freccia tenuta premuta (scorrimento veloce): le immagini aspettano che la si lasci, vedi [FastScroll] */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        FastScroll.onKey(this, event)
+        return super.dispatchKeyEvent(event)
+    }
+
+    override fun onDestroy() {
+        // schermata chiusa: le sue immagini tornano nella cache con il tetto (e i download ancora in corso si fermano)
+        try { window.peekDecorView()?.let { releaseImages(it) } } catch (_: Exception) {}
+        super.onDestroy()
+    }
+
+    private fun releaseImages(v: View) {
+        if (v is ImageView) Ui.release(v)
+        else if (v is ViewGroup) for (i in 0 until v.childCount) releaseImages(v.getChildAt(i))
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {

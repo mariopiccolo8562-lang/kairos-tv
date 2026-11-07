@@ -305,5 +305,7 @@ class DetailActivity : BaseActivity() {
             val w = resources.getDimensionPixelSize(R.dimen.ep_w)
             Ui.img(h.img, e.img.ifEmpty { backdrop.ifEmpty { poster } }, w, w * 9 / 16)
         }
+
+        override fun onViewRecycled(h: H) { Ui.release(h.img) }
     }
 }

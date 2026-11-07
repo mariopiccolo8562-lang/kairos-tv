@@ -371,6 +371,8 @@ open class BrowseActivity : BaseActivity() {
             val h = RowH(inf.inflate(R.layout.item_row, p, false))
             h.list.layoutManager = LinearLayoutManager(p.context, RecyclerView.HORIZONTAL, false).also { it.initialPrefetchItemCount = 6 }
             h.list.fast(horizontal = true)
+            // ogni riga tiene pronte solo poche locandine fuori dallo schermo: le altre lasciano l'immagine alla cache con il tetto
+            h.list.setItemViewCacheSize(if (App.lite) 2 else 4)
             h.list.setRecycledViewPool(pool)
             h.list.adapter = h.cards
             // la locandina selezionata si ingrandisce un poco: non deve essere tagliata sopra e sotto
@@ -391,6 +393,19 @@ open class BrowseActivity : BaseActivity() {
             if (h.cards.row !== r) { h.cards.row = r; h.list.scrollToPosition(0) }
             h.cards.notifyDataSetChanged()
             if (r.type == T_POSTERS && r.cards == null) loadRow(r, i)
+        }
+
+        // riga uscita dallo schermo (non solo scostata): le sue locandine lasciano la memoria, tornano dalla cache se si risale
+        override fun onViewRecycled(h: RecyclerView.ViewHolder) {
+            when (h) {
+                is HeroH -> Ui.release(h.img)
+                is RowH -> for (n in 0 until h.list.childCount) {
+                    when (val c = h.list.getChildViewHolder(h.list.getChildAt(n))) {
+                        is CardH -> Ui.release(c.img)
+                        is RecentH -> Ui.release(c.img)
+                    }
+                }
+            }
         }
     }
 
@@ -509,6 +524,14 @@ open class BrowseActivity : BaseActivity() {
                     h.ph.text = c.name
                     if (App.max) Ui.img(h.img, c.img, posterW * 2 / 3, posterH * 2 / 3) else Ui.img(h.img, c.img, posterW, posterH)
                 }
+            }
+        }
+
+        // locandina uscita dallo schermo: la richiesta si annulla (niente download per righe già passate)
+        override fun onViewRecycled(h: RecyclerView.ViewHolder) {
+            when (h) {
+                is CardH -> Ui.release(h.img)
+                is RecentH -> Ui.release(h.img)
             }
         }
     }
