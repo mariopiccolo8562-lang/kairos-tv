@@ -104,9 +104,27 @@ class DetailActivity : BaseActivity() {
     private fun setBackdrop(url: String) {
         if (url.isEmpty() || url == backdrop || App.max) return // «Leggerissima»: basta la locandina
         backdrop = url
+        loadBackdrop()
+    }
+
+    private fun loadBackdrop() {
         val iv = findViewById<ImageView>(R.id.backdrop)
         val w = if (App.lite) 640 else 1280
-        Ui.img(iv, url, w, w * 9 / 16)
+        Ui.img(iv, backdrop, w, w * 9 / 16)
+    }
+
+    /** sfondo liberato per il lettore: torna appena la scheda si rivede */
+    private var backFreed = false
+
+    override fun releaseBig() {
+        if (backdrop.isEmpty()) return
+        Ui.release(findViewById(R.id.backdrop))
+        backFreed = true
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (backFreed) { backFreed = false; loadBackdrop() }
     }
 
     /* ---------------- dati dal server ---------------- */

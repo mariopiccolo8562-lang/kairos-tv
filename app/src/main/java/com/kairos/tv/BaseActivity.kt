@@ -102,6 +102,9 @@ abstract class BaseActivity : Activity() {
         else if (v is ViewGroup) for (i in 0 until v.childCount) releaseImages(v.getChildAt(i))
     }
 
+    /** il lettore si sta aprendo sopra questa schermata: via le immagini grandi (sfondi, riquadro in evidenza), tornano al ritorno */
+    open fun releaseBig() {}
+
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) immersive()

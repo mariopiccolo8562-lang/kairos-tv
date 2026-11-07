@@ -157,6 +157,17 @@ object Ui {
         try { Glide.with(v).clear(v) } catch (_: Exception) {}
     }
 
+    /**
+     * Entrando nel lettore le immagini lasciano spazio al buffer video: le schermate sotto liberano sfondi e riquadri
+     * grandi (tornano da soli quando si torna indietro, vedi [BaseActivity.releaseBig]) e la cache in memoria si svuota.
+     */
+    fun freeForPlayer(player: Activity) {
+        for (a in App.alive.toList()) if (a !== player && a is BaseActivity) try { a.releaseBig() } catch (_: Exception) {}
+        try { Glide.get(player).clearMemory() } catch (_: Throwable) {}
+        // le immagini appena liberate passano dalla cache al riciclo un attimo dopo: si svuota ancora una volta
+        App.main.postDelayed({ try { Glide.get(App.I).clearMemory() } catch (_: Throwable) {} }, 400)
+    }
+
     fun dialog(a: Activity, title: String, msg: String, ok: String = "OK", cancel: String? = null, onOk: (() -> Unit)? = null): AlertDialog? {
         if (a.isFinishing) return null
         val b = AlertDialog.Builder(a).setTitle(title).setMessage(msg).setPositiveButton(ok) { _, _ -> onOk?.invoke() }

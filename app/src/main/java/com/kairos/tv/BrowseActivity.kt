@@ -130,6 +130,21 @@ open class BrowseActivity : BaseActivity() {
         Sync.unlisten(syncL)
     }
 
+    /** riquadro grande liberato per il lettore: torna appena la schermata si rivede */
+    private var heroFreed = false
+
+    override fun releaseBig() {
+        if (!::rows.isInitialized) return
+        val h = rows.findViewHolderForAdapterPosition(0) as? HeroH ?: return
+        Ui.release(h.img)
+        heroFreed = true
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (heroFreed) { heroFreed = false; adapter.notifyItemChanged(0) }
+    }
+
     override fun onStateChanged() {
         fillAccount()
         if (sig() != loadedSig) build()

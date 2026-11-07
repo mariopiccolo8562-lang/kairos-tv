@@ -275,6 +275,8 @@ class PlayerActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // il buffer video viene prima delle immagini: cache svuotata, sfondi e riquadri grandi delle schermate sotto liberati
+        Ui.freeForPlayer(this)
         setContentView(R.layout.activity_player)
         pv = findViewById(R.id.pv)
         spin = findViewById(R.id.spin)
