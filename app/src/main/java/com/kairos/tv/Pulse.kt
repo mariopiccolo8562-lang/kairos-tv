@@ -30,6 +30,8 @@ object Pulse {
     @Volatile private var sending = false
     /** il pannello ha chiesto di aspettare (429 con «wait»): prima di questo istante non parte nessun battito */
     @Volatile private var holdUntil = 0L
+    /** «vado in sfondo» già partito per questa volta in primo piano (es. comando «Chiudi» dal pannello): non si ripete */
+    @Volatile private var awaySent = false
 
     private val tick = object : Runnable {
         override fun run() {
@@ -53,6 +55,7 @@ object Pulse {
         App.main.removeCallbacks(tick)
         App.main.removeCallbacks(soon)
         if (fg) {
+            awaySent = false
             // ritorno in primo piano: battito «vis: true» entro un secondo, anche se il minuto dei menu non è passato
             want = true
             later(1_000)
@@ -117,20 +120,40 @@ object Pulse {
     }
 
     /**
+     * Comando «Chiudi» dal pannello (thread principale): i battiti si fermano e parte subito il «vado in sfondo»;
+     * [then] (la chiusura) arriva appena il battito è partito, al massimo dopo ~1,5 s.
+     */
+    fun leaving(then: () -> Unit) {
+        on = false
+        want = false
+        watching = null
+        App.main.removeCallbacks(tick)
+        App.main.removeCallbacks(soon)
+        var done = false
+        val go = { if (!done) { done = true; then() } }
+        App.main.postDelayed({ go() }, 1_500)
+        if (!away { ui { go() } }) go()
+    }
+
+    /**
      * L'app va in sfondo: un solo battito «vis: false» con stato «idle» (stessi campi di sempre), sui thread di rete.
      * Non sposta l'istante dell'ultimo battito; la risposta si ignora (comandi e configurazione arrivano al ritorno).
+     * [sent] a battito partito; false = nessun battito da mandare (già partito, o abbonamento non attivo).
      */
-    private fun away() {
-        val st = Panel.state ?: return
-        if (!st.active) return
+    private fun away(sent: (() -> Unit)? = null): Boolean {
+        if (awaySent) return false
+        val st = Panel.state ?: return false
+        if (!st.active) return false
+        awaySent = true
         val ack = kickAck
         val vpnOn = KxVpn.state == "on"
         net {
             // un battito partito poco prima arriva per primo: dopo il «vado in sfondo» l'app non deve risultare di nuovo aperta
             var n = 0
             while (sending && n++ < 30) try { Thread.sleep(100) } catch (_: InterruptedException) { break }
-            Panel.heartbeat(null, ack, vpnOn, "", null, vis = false)
+            try { Panel.heartbeat(null, ack, vpnOn, "", null, vis = false) } finally { sent?.invoke() }
         }
+        return true
     }
 
     private fun handle(j: JSONObject) {

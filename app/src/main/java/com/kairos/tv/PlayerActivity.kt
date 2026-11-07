@@ -78,6 +78,8 @@ class PlayerActivity : BaseActivity() {
         @Volatile var lighterUntil = 0L
         /** per ogni portale l'ultimo formato che ha funzionato (0 = m3u8, 1 = ts) */
         val fmtPref = java.util.concurrent.ConcurrentHashMap<String, Int>()
+        /** fotogrammi al secondo «standard»: la misura vicina (meno di 1,5) si arrotonda a uno di questi */
+        private val STD_FPS = intArrayOf(24, 25, 30, 48, 50, 60, 100, 120)
     }
 
     private lateinit var pv: PlayerView
@@ -213,6 +215,10 @@ class PlayerActivity : BaseActivity() {
     /** altezza del video vista in questo avvio: se cambia (qualità adattiva) il riquadro ricompare */
     private var resH = 0
     private val resR = Runnable { resShow() }
+    /** FPS misurati dal decoder quando il flusso non li dichiara (canali TS): media smorzata, ultimo conteggio e istante */
+    private var fpsAvg = 0.0
+    private var fpsN = -1
+    private var fpsT = 0L
 
     private val hideR = Runnable { hideOverlay() }
     private val tuneR = Runnable { if (ids.isNotEmpty()) tune(ids[idx]) }
@@ -261,6 +267,7 @@ class PlayerActivity : BaseActivity() {
             checkResolved()
             checkReduced()
             checkFill()
+            if (live) measureFps()
             if (!live) { savePos(false); goodPos() }
             App.main.postDelayed(this, 1000)
         }
@@ -1032,6 +1039,7 @@ class PlayerActivity : BaseActivity() {
         firstReady = false
         gaveUp = false
         resH = 0 // nuovo avvio: il riquadro risoluzione ricompare al primo fotogramma
+        fpsAvg = 0.0; fpsN = -1 // flusso nuovo: gli FPS si misurano da capo
         // film: si riparte dal punto in cui si era (un errore di rete non fa ricominciare da capo)
         if (live) p.setMediaItem(Players.item(u, forceHls))
         else p.setMediaItem(Players.item(u, forceHls), maxOf(pos ?: (if (p.currentPosition > 0) p.currentPosition else lastGoodPos), 0L))
@@ -1256,19 +1264,50 @@ class PlayerActivity : BaseActivity() {
     /** permesso del cliente «resInd» (assente = consentito); film e serie restano come sono */
     private fun resOn(): Boolean = live && Panel.state?.perm("resInd") != false
 
-    /** «FHD · 1080p · 50 fps»: qualità, righe e fotogrammi al secondo (questi solo se il flusso li dichiara) */
+    /** «FHD · 1080p · 50 fps»: qualità, righe e fotogrammi al secondo (dichiarati dal flusso, altrimenti misurati dal decoder) */
     private fun resText(): String {
         val p = player ?: return ""
         val f = p.videoFormat
         val h = p.videoSize.height.takeIf { it > 0 } ?: f?.height?.takeIf { it > 0 } ?: return ""
         val q = when { h >= 2000 -> "4K"; h >= 1000 -> "FHD"; h >= 700 -> "HD"; else -> "SD" }
         val fr = f?.frameRate ?: 0f
+        val m = fpsShown()
         val fps = when {
-            fr <= 0f -> ""
-            Math.abs(fr - Math.round(fr)) < 0.05f -> " · ${Math.round(fr)} fps"
-            else -> " · " + String.format(Locale.ITALY, "%.2f", fr) + " fps"
+            fr > 0f && Math.abs(fr - Math.round(fr)) < 0.05f -> " · ${Math.round(fr)} fps"
+            fr > 0f -> " · " + String.format(Locale.ITALY, "%.2f", fr) + " fps"
+            m > 0 -> " · $m fps" // il flusso (es. TS) non li dichiara: misurati
+            else -> ""
         }
         return "$q · ${h}p$fps"
+    }
+
+    /** ogni secondo, mentre il video va davvero: fotogrammi mostrati dal decoder / tempo trascorso, smorzati (0,6 vecchio + 0,4 nuovo) */
+    private fun measureFps() {
+        val p = player ?: return
+        val c = if (p.isPlaying) p.videoDecoderCounters else null
+        if (c == null) { fpsN = -1; return }
+        c.ensureUpdated()
+        val n = c.renderedOutputBufferCount
+        val now = mono()
+        val pn = fpsN
+        val pt = fpsT
+        fpsN = n
+        fpsT = now
+        if (pn < 0 || n < pn || now - pt < 500) return
+        val v = (n - pn) * 1000.0 / (now - pt)
+        if (v < 5.0 || v > 130.0) return // fuori misura (avvio, salto, decoder appena ricreato)
+        val before = fpsShown()
+        fpsAvg = if (fpsAvg <= 0.0) v else fpsAvg * 0.6 + v * 0.4
+        // «· NN fps» compare nel riquadro appena c'è la misura, e si aggiorna se cambia
+        if (fpsShown() != before && resInd.visibility == View.VISIBLE) resShow()
+    }
+
+    /** FPS misurati: al valore standard più vicino (24, 25, 30, 48, 50, 60, 100, 120) se dista meno di 1,5, altrimenti all'intero */
+    private fun fpsShown(): Int {
+        val a = fpsAvg
+        if (a <= 0.0) return 0
+        val s = STD_FPS.minByOrNull { Math.abs(it - a) } ?: return Math.round(a).toInt()
+        return if (Math.abs(s - a) < 1.5) s else Math.round(a).toInt()
     }
 
     /** il riquadro resta per [ms] (oltre che sempre insieme alla barra informazioni) */
