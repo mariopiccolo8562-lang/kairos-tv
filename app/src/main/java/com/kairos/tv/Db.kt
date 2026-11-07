@@ -101,6 +101,14 @@ object Db {
         q.args.addAll(list)
     }
 
+    /** senza i contenuti delle categorie [skip] (nascoste dalla Home dal pannello, vedi [HomeCfg]) */
+    private fun skipCats(q: Q, skip: List<String>) {
+        if (skip.isEmpty()) return
+        val list = skip.take(900)
+        q.where += " AND cat NOT IN (" + list.joinToString(",") { "?" } + ")"
+        q.args.addAll(list)
+    }
+
     /* ---------------- categorie ---------------- */
     class Cat(val id: String, val name: String, var count: Int = -1, val adult: Boolean = false)
 
@@ -179,8 +187,8 @@ object Db {
     /* ---------------- righe stile Netflix (Home, Film, Serie) ---------------- */
     class Card(val table: String, val id: Long, val k: String, val name: String, val img: String, val year: String, val rating: String, val plot: String)
 
-    /** i primi [limit] titoli di una riga: categoria, preferiti o aggiunti di recente */
-    fun cards(table: String, cat: String, pls: List<String>, kids: Boolean, favs: Set<String>, limit: Int): List<Card> {
+    /** i primi [limit] titoli di una riga: categoria, preferiti o aggiunti di recente ([skip]: categorie da escludere) */
+    fun cards(table: String, cat: String, pls: List<String>, kids: Boolean, favs: Set<String>, limit: Int, skip: List<String> = emptyList()): List<Card> {
         if (pls.isEmpty()) return emptyList()
         val q = base(pls, kids)
         var order = "_id"
@@ -189,6 +197,7 @@ object Db {
             FAV -> favIn(q, favs)
             else -> { q.where += " AND cat = ?"; q.args.add(cat) }
         }
+        skipCats(q, skip)
         val plot = if (table == "series") "plot" else "''"
         val out = ArrayList<Card>(limit)
         r.rawQuery("SELECT _id, k, name, img, year, rating, $plot FROM $table WHERE ${q.where} ORDER BY $order LIMIT $limit", q.args.toTypedArray()).use { c ->
@@ -197,10 +206,11 @@ object Db {
         return out
     }
 
-    /** titolo in evidenza: il più recente con un'immagine */
-    fun featured(table: String, pls: List<String>, kids: Boolean): Card? {
+    /** titolo in evidenza: il più recente con un'immagine, fuori dalle categorie [skip] */
+    fun featured(table: String, pls: List<String>, kids: Boolean, skip: List<String> = emptyList()): Card? {
         if (pls.isEmpty()) return null
         val q = base(pls, kids)
+        skipCats(q, skip)
         val plot = if (table == "series") "plot" else "''"
         r.rawQuery("SELECT _id, k, name, img, year, rating, $plot FROM $table WHERE ${q.where} AND img LIKE 'http%' ORDER BY added DESC, _id LIMIT 1", q.args.toTypedArray()).use { c ->
             return if (c.moveToFirst()) Card(table, c.getLong(0), c.getString(1) ?: "", c.getString(2) ?: "", c.getString(3) ?: "", c.getString(4) ?: "", c.getString(5) ?: "", c.getString(6) ?: "") else null

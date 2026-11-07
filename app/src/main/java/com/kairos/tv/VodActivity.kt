@@ -90,11 +90,12 @@ class VodActivity : BaseActivity() {
         loadCats()
     }
 
-    private fun sig() = K.activeIds().joinToString(",") + "|" + K.kids
+    private fun sig() = K.activeIds().joinToString(",") + "|" + K.kids + "|" + HomeCfg.sig()
 
     override fun onResume() {
         super.onResume()
         favSet = Store.favs(table)
+        if (!isFinishing) onStateChanged() // di ritorno: ordine delle categorie cambiato dal pannello nel frattempo
     }
 
     override fun onDestroy() {
@@ -116,7 +117,8 @@ class VodActivity : BaseActivity() {
             val total = Db.count(table, pls, kids)
             ui {
                 if (isFinishing) return@ui
-                val all = fixedCats(this, table, total, favs.size) + list
+                // dal pannello: categorie in primo piano per prime, quelle nascoste dalla Home in fondo (vedi HomeCfg)
+                val all = fixedCats(this, table, total, favs.size) + HomeCfg.order(list)
                 var idx = all.indexOfFirst { it.id == curCat }
                 if (idx < 0) idx = 0
                 catAdapter.set(all, idx)

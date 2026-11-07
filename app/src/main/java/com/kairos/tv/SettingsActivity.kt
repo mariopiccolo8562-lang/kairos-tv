@@ -96,8 +96,10 @@ class SettingsActivity : BaseActivity() {
         wasRunning = Sync.running
         syncSub = row(R.drawable.ic_refresh, "Aggiorna liste", syncText(), "") { Sync.force(); build() }
         row(R.drawable.ic_tv, "Anteprima canali", "OK una volta: il canale parte nel riquadro (versione più leggera) · OK di nuovo: schermo intero", (if (Store.preview == "off") "Spenta" else "Al primo OK") + (if (Remote.imposed("preview")) " · fornitore" else "")) { if (Remote.imposed("preview")) Ui.toast("Impostazione scelta dal tuo fornitore") else choosePreview() }
-        val liteVal = when (Store.liteMode) { "on" -> "Sempre"; "max" -> "Leggerissima"; "off" -> "Mai"; else -> "Automatica" } + (if (Remote.imposed("lite")) " · fornitore" else "")
-        row(R.drawable.ic_bolt, "Modalità leggera", "Per chiavette e TV vecchie: niente animazioni, immagini e memoria ridotte", liteVal) { if (Remote.imposed("lite")) Ui.toast("Impostazione scelta dal tuo fornitore") else chooseLite() }
+        // bloccata se la impone il pannello o se il fornitore ha spento il permesso «lite» del cliente
+        val liteLocked = Remote.imposed("lite") || !Store.liteAllowed()
+        val liteVal = when (Store.liteMode) { "on" -> "Sempre"; "max" -> "Leggerissima"; "off" -> "Mai"; else -> "Automatica" } + (if (liteLocked) " · fornitore" else "")
+        row(R.drawable.ic_bolt, "Modalità leggera", "Per chiavette e TV vecchie: niente animazioni, immagini e memoria ridotte", liteVal) { if (liteLocked) Ui.toast("Impostazione scelta dal tuo fornitore") else chooseLite() }
         row(R.drawable.ic_shield, "Controllo genitori", "Le categorie per adulti chiedono il PIN", if (Parental.on()) "Attivo" else "Spento") {
             if (Parental.on()) Parental.ask(this, "PIN per disattivare") { Store.parental = false; Parental.unlocked = false; build() }
             else { Store.parental = true; Parental.unlocked = false; build(); if (Parental.pinIsDefault()) Parental.choose(this) { build() } }

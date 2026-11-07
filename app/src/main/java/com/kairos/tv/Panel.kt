@@ -179,6 +179,7 @@ object Panel {
         if (code == 429) throw Err("Troppe richieste: riprovo tra poco")
         if (code >= 400) throw Err(j.optString("error").ifEmpty { "Errore del server (HTTP $code)" })
         val s = State.parse(j)
+        val liteBefore = Store.liteMode // modalità leggera effettiva con configurazione e permessi di prima
         if (j.has("rc")) Remote.apply(j.optJSONObject("rc"), j.optString("rcv")) // impostazioni imposte dal pannello
         // il pannello può indicare un nuovo indirizzo per sé stesso (Impostazioni → server)
         val mv = s.setting("serverUrl").trimEnd('/')
@@ -190,21 +191,28 @@ object Panel {
         // manutenzione: resta l'ultimo stato buono, l'abbonamento non è cambiato
         if (s.status != "maintenance") Store.stateJson = if (s.active) cache.toString() else ""
         state = s
+        // permesso «lite» cambiato: la modalità leggera effettiva si ricalcola, come per quella imposta dal pannello
+        if (s.active && Store.liteMode != liteBefore) ui { Remote.relite(liteBefore) }
         return s
     }
 
-    fun heartbeat(w: Pulse.Watch?, kickAck: Long, vpnOn: Boolean, screen: String, stats: JSONObject?): JSONObject? {
+    /**
+     * Battito. [vis]: true = app in primo piano (menu o visione); false = «vado in sfondo», il pannello la mostra subito
+     * non in linea. Risposta: codice HTTP (0 = server irraggiungibile) e JSON; con 429 il pannello indica «wait» (secondi).
+     */
+    fun heartbeat(w: Pulse.Watch?, kickAck: Long, vpnOn: Boolean, screen: String, stats: JSONObject?, vis: Boolean = true): Pair<Int, JSONObject?> {
         val b = auth()
             .put("state", w?.state ?: "idle").put("title", w?.title ?: "").put("ch", w?.ch ?: "").put("chId", w?.chId ?: "")
             .put("group", w?.group ?: "").put("pl", w?.pl ?: "").put("prof", K.profile()?.name ?: "")
             .put("ver", ver).put("ui", "").put("model", model).put("screen", screen.take(20))
             .put("net", JSONObject().put("type", Net.type()).apply { if (Net.type() == "wifi") Net.rssi().takeIf { it != 0 }?.let { put("rssi", it) } })
             .put("vpn", if (vpnOn) "on" else "off")
+            .put("vis", vis)
         // diagnostica in «Online ora»: codec, decodifica, blocchi, fotogrammi persi, qualità ridotta
         if (stats != null) b.put("stats", stats)
         if (kickAck > 0) b.put("kickAck", kickAck)
         b.put("cfg", Remote.snapshot()).put("rcv", Store.rcv) // controllo remoto: impostazioni attuali e configurazione applicata
-        return try { val (c, j) = post("/api/player/heartbeat", b); if (c == 200) j else null } catch (_: Exception) { null }
+        return try { post("/api/player/heartbeat", b) } catch (_: Exception) { 0 to null }
     }
 
     /** conferma al pannello di un comando del controllo remoto */

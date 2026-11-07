@@ -12,7 +12,8 @@ import kotlin.system.exitProcess
 /**
  * Controllo remoto dal pannello Kairos Control.
  * - Impostazioni imposte (rc): arrivano con l'apertura (register) e con ogni battito; vincono su quelle scelte
- *   nell'app, che le mostra come «scelte dal fornitore». Oggi: modalità leggera, anteprima canali, aggiornamento in background.
+ *   nell'app, che le mostra come «scelte dal fornitore». Oggi: modalità leggera, anteprima canali, aggiornamento in background,
+ *   Home (categorie in primo piano e nascoste, vedi [HomeCfg]).
  * - Comandi (cmds): riavvia, svuota cache e riavvia, aggiorna liste, apri impostazioni, aggiorna l'app, chiudi. L'app li esegue
  *   e li conferma al pannello (POST /api/player/cmd).
  * - L'app riporta le sue impostazioni attuali (cfg) e la versione della configurazione applicata (rcv).
@@ -55,14 +56,20 @@ object Remote {
         Store.rcJson = raw
         Store.rcv = rcv
         cacheRaw = null
-        ui {
-            val wasLite = App.lite
-            val wasMax = App.max
-            App.lite = App.I.detectLite()
-            App.max = Store.liteMode == "max"
-            if (Store.liteMode != liteBefore && (App.lite != wasLite || App.max != wasMax) && App.top !is PlayerActivity) restart()
-            else (App.top as? BaseActivity)?.stateChanged()
-        }
+        ui { relite(liteBefore) }
+    }
+
+    /**
+     * Modalità leggera effettiva ricalcolata (configurazione nuova o permesso «lite» cambiato): se cambia davvero
+     * l'app si riavvia (mai durante la visione), altrimenti la schermata si riallinea (es. Home dal pannello).
+     */
+    fun relite(liteBefore: String) {
+        val wasLite = App.lite
+        val wasMax = App.max
+        App.lite = App.I.detectLite()
+        App.max = Store.liteMode == "max"
+        if (Store.liteMode != liteBefore && (App.lite != wasLite || App.max != wasMax) && App.top !is PlayerActivity) restart()
+        else (App.top as? BaseActivity)?.stateChanged()
     }
     fun applyRaw(rcStr: String?, rcv: String) {
         if (rcStr == null) return

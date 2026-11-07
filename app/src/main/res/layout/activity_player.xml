@@ -54,6 +54,27 @@
         android:textStyle="bold"
         android:visibility="gone" />
 
+    <!-- risoluzione e fotogrammi al secondo dei canali in diretta (permesso «resInd» del cliente): non prende il focus -->
+    <TextView
+        android:id="@+id/resInd"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|right"
+        android:layout_marginRight="@dimen/pad"
+        android:layout_marginTop="@dimen/pad"
+        android:background="@drawable/bg_badge"
+        android:clickable="false"
+        android:focusable="false"
+        android:paddingBottom="6dp"
+        android:paddingLeft="12dp"
+        android:paddingRight="12dp"
+        android:paddingTop="6dp"
+        android:singleLine="true"
+        android:textColor="@color/text"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
     <TextView
         android:id="@+id/zap"
         android:layout_width="wrap_content"

@@ -94,8 +94,10 @@ object Store {
         get() = p.getLong("pinLater", 0L)
         set(v) = p.edit().putLong("pinLater", v).apply()
     var liteMode: String
-        get() = Remote.lite ?: s("liteMode", "auto")
+        get() = Remote.lite ?: if (liteAllowed()) s("liteMode", "auto") else "auto"
         set(v) = put("liteMode", v)
+    /** permesso del cliente «lite» (assente = consentito): spento, vale la modalità automatica e la scelta salvata resta da parte */
+    fun liteAllowed(): Boolean = (Panel.state ?: Panel.loadCached())?.perm("lite") != false
     /** aggiornamento in background: la versione nuova si scarica da sola (quella imposta dal pannello vince) */
     var bgUpdate: Boolean
         get() = Remote.bgUpdate ?: p.getBoolean("bgUpdate", true)

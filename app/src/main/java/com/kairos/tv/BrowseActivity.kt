@@ -48,6 +48,8 @@ open class BrowseActivity : BaseActivity() {
         var loading = false
         var more = false
         var count = 0
+        /** categorie i cui titoli non entrano nella riga (nascoste dalla Home dal pannello) */
+        var skip: List<String> = emptyList()
     }
 
     companion object {
@@ -119,7 +121,8 @@ open class BrowseActivity : BaseActivity() {
         fillAccount()
         Sync.start()
         showSync()
-        if (built) refreshDynamic()
+        // di ritorno: se nel frattempo è cambiato qualcosa (es. la Home dal pannello) si ricostruisce
+        if (built) { if (sig() != loadedSig) build() else refreshDynamic() }
     }
 
     override fun onDestroy() {
@@ -132,7 +135,7 @@ open class BrowseActivity : BaseActivity() {
         if (sig() != loadedSig) build()
     }
 
-    private fun sig() = K.activeIds().joinToString(",") + "|" + K.kids + "|" + Store.profileId
+    private fun sig() = K.activeIds().joinToString(",") + "|" + K.kids + "|" + Store.profileId + "|" + HomeCfg.sig()
 
     private fun fillAccount() {
         val s = Panel.state ?: return
@@ -165,32 +168,47 @@ open class BrowseActivity : BaseActivity() {
         val my = ++seq
         bg {
             val list = ArrayList<Row>()
+            val tables = when (k) { "vod" -> listOf("vod"); "series" -> listOf("series"); else -> listOf("vod", "series") }
+            // categorie e Home dal pannello (HomeCfg): i titoli delle categorie nascoste non vanno in evidenza né tra gli aggiunti di recente
+            val cats = HashMap<String, List<Db.Cat>>()
+            val hide = HashMap<String, List<String>>()
+            if (k != "list") for (t in tables) {
+                val cs = Db.cats(t, pls, kids)
+                cats[t] = cs
+                hide[t] = cs.filter { HomeCfg.hidden(it.name) }.map { it.id }
+            }
             var h: Db.Card? = null
             if (k != "list") {
-                h = Db.featured(if (k == "series") "series" else "vod", pls, kids)
-                if (h == null && k == "home") h = Db.featured("series", pls, kids)
+                val ft = if (k == "series") "series" else "vod"
+                h = Db.featured(ft, pls, kids, hide[ft].orEmpty())
+                if (h == null && k == "home") h = Db.featured("series", pls, kids, hide["series"].orEmpty())
             }
             list.add(Row("hero", "", T_HERO))
             if (k == "home") {
                 val rec = Store.recent()
                 if (rec.isNotEmpty()) list.add(Row("recent", "Continua a guardare", T_RECENT).also { it.recent = rec })
             }
-            val tables = when (k) { "vod" -> listOf("vod"); "series" -> listOf("series"); else -> listOf("vod", "series") }
+            // categorie in primo piano (dal pannello): subito dopo «Continua a guardare», prima di tutte le altre righe
+            val promoted = HashSet<String>()
+            if (k == "home") for ((t, c) in HomeCfg.top(tables.flatMap { t -> cats[t].orEmpty().map { t to it } })) {
+                promoted.add(c.id)
+                list.add(catRow(t, c))
+            }
             for (t in tables) {
                 val name = if (t == "vod") "Film" else "Serie TV"
                 if (Store.favs(t).isNotEmpty() || k == "list") list.add(Row("fav$t", if (tables.size > 1) "La mia lista · $name" else "La mia lista", T_POSTERS, t, Db.FAV))
             }
             if (k != "list") {
-                for (t in tables) list.add(Row("new$t", if (t == "vod") "Film aggiunti di recente" else "Serie TV aggiunte di recente", T_POSTERS, t, Db.NEW))
+                for (t in tables) list.add(Row("new$t", if (t == "vod") "Film aggiunti di recente" else "Serie TV aggiunte di recente", T_POSTERS, t, Db.NEW).also { it.skip = hide[t].orEmpty() })
                 for (t in tables) {
-                    val cats = Db.cats(t, pls, kids)
-                    for (c in if (k == "home") cats.take(5) else cats) {
-                        list.add(Row("c$t:" + c.id, c.name, T_POSTERS, t, c.id).also { it.more = c.count > LIMIT; it.count = c.count })
-                    }
+                    val cs = cats[t].orEmpty()
+                    // Home: le solite prime 5, senza le nascoste e senza quelle già in primo piano; Film e Serie: tutte, le nascoste in fondo
+                    val show = if (k == "home") cs.filter { it.id !in promoted && !HomeCfg.hidden(it.name) }.take(5) else HomeCfg.order(cs)
+                    for (c in show) list.add(catRow(t, c))
                 }
             }
             // le prime righe arrivano già piene: la schermata compare completa
-            list.filter { it.type == T_POSTERS }.take(3).forEach { r -> r.cards = Db.cards(r.table, r.cat, pls, kids, Store.favs(r.table), LIMIT) }
+            list.filter { it.type == T_POSTERS }.take(3).forEach { r -> r.cards = Db.cards(r.table, r.cat, pls, kids, Store.favs(r.table), LIMIT, r.skip) }
             ui {
                 if (isFinishing || my != seq) return@ui
                 hero = h
@@ -202,6 +220,9 @@ open class BrowseActivity : BaseActivity() {
             }
         }
     }
+
+    /** riga di una categoria («Vedi tutti» in fondo se ha più titoli di quelli mostrati) */
+    private fun catRow(t: String, c: Db.Cat) = Row("c$t:" + c.id, c.name, T_POSTERS, t, c.id).also { it.more = c.count > LIMIT; it.count = c.count }
 
     /** di ritorno da un film: «Continua a guardare» e La mia lista aggiornati senza ricostruire tutto */
     private fun refreshDynamic() {
@@ -225,7 +246,7 @@ open class BrowseActivity : BaseActivity() {
         val favs = Store.favs(r.table)
         val my = seq
         bg {
-            val c = Db.cards(r.table, r.cat, pls, kids, favs, LIMIT)
+            val c = Db.cards(r.table, r.cat, pls, kids, favs, LIMIT, r.skip)
             ui {
                 if (isFinishing || my != seq) return@ui
                 r.cards = c
