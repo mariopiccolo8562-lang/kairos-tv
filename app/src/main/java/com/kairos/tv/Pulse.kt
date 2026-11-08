@@ -184,6 +184,9 @@ object Pulse {
         if (j.optInt("mt", 0) == 1) changed = true
         val unseen = j.optInt("unseen", -1)
         if (unseen > K.unseenMessages().size) changed = true
+        // profili, PIN dei profili, profili massimi o blocco dei profili cambiati dal pannello (impronta «af»; assente = pannello vecchio)
+        val af = j.optString("af", "")
+        if (af.isNotEmpty() && af != s.af) changed = true
         if (changed || SystemClock.elapsedRealtime() - lastReg > 20 * 60_000L) refresh()
     }
 
@@ -199,6 +202,6 @@ object Pulse {
         if (!s.active) { a?.goActivation(); return }
         Vpns.apply(a)
         if (App.top !is PlayerActivity) Sync.start() // mai durante la visione
-        a?.stateChanged()
+        a?.stateChanged() // profilo in uso tolto dal pannello: si torna a «Chi guarda?» (durante la visione al ritorno nei menu)
     }
 }

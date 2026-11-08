@@ -114,7 +114,7 @@ class ProfilesActivity : BaseActivity() {
             .setPositiveButton("Salva") { _, _ ->
                 val n = name.text.toString().trim()
                 if (n.isEmpty()) { Ui.toast("Scrivi un nome"); return@setPositiveButton }
-                val list = profiles().map { Profile(it.id, it.name, it.avatar, it.kids, it.pl) }.toMutableList()
+                val list = profiles().map { Profile(it.id, it.name, it.avatar, it.kids, it.pl, it.pinH, it.age) }.toMutableList()
                 if (p == null) list.add(Profile("", n, av, kids.isChecked, "all"))
                 else list.find { it.id == p.id }?.let { it.name = n; it.avatar = av; it.kids = kids.isChecked }
                 save(list)

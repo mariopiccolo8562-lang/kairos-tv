@@ -71,10 +71,18 @@ class Playlist(
     }
 }
 
-class Profile(val id: String, var name: String, var avatar: String, var kids: Boolean, var pl: String) {
-    fun json(): JSONObject = JSONObject().put("id", id).put("name", name).put("avatar", avatar).put("kids", kids).put("pl", pl)
+/** [pinH] ed [age]: PIN del profilo ed età massima messi dal pannello. L'app non li usa ma li rimanda quando salva i profili,
+ *  altrimenti una modifica fatta dalla TV (nome, colore, profilo nuovo) cancellerebbe i PIN messi dal pannello */
+class Profile(val id: String, var name: String, var avatar: String, var kids: Boolean, var pl: String, val pinH: String = "", val age: Int? = null) {
+    fun json(): JSONObject {
+        val o = JSONObject().put("id", id).put("name", name).put("avatar", avatar).put("kids", kids).put("pl", pl)
+        if (pinH.isNotEmpty()) o.put("pinH", pinH)
+        if (age != null) o.put("age", age)
+        return o
+    }
     companion object {
-        fun from(o: JSONObject) = Profile(o.optString("id"), o.optString("name"), o.optString("avatar", "a1").ifEmpty { "a1" }, o.optBoolean("kids"), o.optString("pl", "all").ifEmpty { "all" })
+        fun from(o: JSONObject) = Profile(o.optString("id"), o.optString("name"), o.optString("avatar", "a1").ifEmpty { "a1" }, o.optBoolean("kids"), o.optString("pl", "all").ifEmpty { "all" },
+            o.optString("pinH", ""), if (o.has("age") && !o.isNull("age")) o.optInt("age") else null)
     }
 }
 
@@ -108,6 +116,8 @@ class State(
     val vpnMode: String, val vpnConf: String, val perms: JSONObject?,
     /** messaggio della manutenzione (status «maintenance») */
     val maintMsg: String = "",
+    /** impronta dell'account dal pannello: se nel battito arriva diversa, profili e PIN sono cambiati e si rilegge lo stato */
+    val af: String = "",
 ) {
     val active: Boolean get() = status == "active"
     fun perm(k: String): Boolean = perms?.optBoolean(k, true) ?: true
@@ -135,6 +145,7 @@ class State(
                 vpn?.optString("mode", "off") ?: "off", vpn?.optString("conf", "") ?: "",
                 j.optJSONObject("perms"),
                 j.optString("maintMsg"),
+                j.optString("af"),
             )
         }
         fun locked() = State("locked", "", "", JSONObject(), emptyList(), emptyList(), null, "off", "", null)
