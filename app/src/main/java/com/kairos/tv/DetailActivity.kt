@@ -103,14 +103,15 @@ class DetailActivity : BaseActivity() {
     }
 
     private fun setBackdrop(url: String) {
-        if (url.isEmpty() || url == backdrop || App.max) return // «Leggerissima»: basta la locandina
+        if (url.isEmpty() || url == backdrop) return
         backdrop = url
         loadBackdrop()
     }
 
+    /** l'immagine di anteprima c'è in ogni modalità: più piccola in modalità leggera e «Leggerissima», mai tolta */
     private fun loadBackdrop() {
         val iv = findViewById<ImageView>(R.id.backdrop)
-        val w = if (App.lite) 640 else 1280
+        val w = if (App.max) 480 else if (App.lite) 640 else 1280
         Ui.img(iv, backdrop, w, w * 9 / 16)
     }
 
