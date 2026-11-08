@@ -75,7 +75,8 @@ class DetailActivity : BaseActivity() {
                 fillBasic(r)
                 loadInfo(r)
                 // «Riproduci» dal riquadro grande della Home: il film parte subito
-                if (table == "vod" && intent.getBooleanExtra("autoplay", false)) { intent.removeExtra("autoplay"); play(false) }
+                // prima l'eventuale proposta d'aggiornamento: il film parte dopo «Più tardi» (con l'obbligatorio non parte)
+                if (table == "vod" && intent.getBooleanExtra("autoplay", false)) { intent.removeExtra("autoplay"); Updater.whenFree(this) { if (!isFinishing) play(false) } }
             }
         }
         playBtn.requestFocus()

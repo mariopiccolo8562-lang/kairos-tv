@@ -310,7 +310,7 @@ class LiveActivity : BaseActivity() {
     private fun previewOn(): Boolean = Store.preview != "off"
 
     private fun startVideo() {
-        if (!previewOn() || isFinishing) return
+        if (!previewOn() || isFinishing || Updater.must()) return
         val r = curRow ?: return
         val id = r.l("_id")
         previewId = id
@@ -360,6 +360,9 @@ class LiveActivity : BaseActivity() {
             }
         }
     }
+
+    /** finestra dell'aggiornamento obbligatorio: l'anteprima nel riquadro si ferma */
+    override fun onBlocked() { stopVideo() }
 
     private fun stopVideo() {
         videoSeq++

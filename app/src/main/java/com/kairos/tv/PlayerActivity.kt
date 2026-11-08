@@ -275,6 +275,8 @@ class PlayerActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // aggiornamento obbligatorio scaduto: niente visione, si torna al menu dove compare la finestra che blocca l'app
+        if (Updater.must()) { finish(); return }
         // il buffer video viene prima delle immagini: cache svuotata, sfondi e riquadri grandi delle schermate sotto liberati
         Ui.freeForPlayer(this)
         setContentView(R.layout.activity_player)

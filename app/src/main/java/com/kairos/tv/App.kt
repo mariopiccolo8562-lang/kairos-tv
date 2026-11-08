@@ -29,6 +29,8 @@ class App : Application() {
         super.onCreate()
         I = this
         Store.init(this)
+        // versione nuova già trovata (e APK già scaricato): vale subito, anche senza rete (blocco obbligatorio compreso)
+        try { Updater.restore() } catch (_: Throwable) {}
         Db.init(this)
         // l'archivio si apre subito in sottofondo, mentre compare la prima schermata (mai sul thread principale)
         bg { Db.r }

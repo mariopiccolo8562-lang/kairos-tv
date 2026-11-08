@@ -109,6 +109,16 @@ object Store {
     var updFirstAt: Long
         get() = p.getLong("updFirstAt", 0)
         set(v) = p.edit().putLong("updFirstAt", v).apply()
+    /** versione nuova trovata (codice, nome, indirizzo) e APK già scaricato e verificato (percorso e dimensione):
+     *  restano anche dopo un riavvio, così l'aggiornamento obbligatorio blocca l'app subito, anche senza rete */
+    val updCode: Int get() = p.getInt("updCode", 0)
+    val updVer: String get() = s("updVer")
+    val updUrl: String get() = s("updUrl")
+    val updFile: String get() = s("updFile")
+    val updLen: Long get() = p.getLong("updLen", 0L)
+    fun saveUpd(code: Int, ver: String, url: String) { p.edit().putInt("updCode", code).putString("updVer", ver).putString("updUrl", url).apply() }
+    fun saveUpdFile(path: String, len: Long) { p.edit().putString("updFile", path).putLong("updLen", len).apply() }
+    fun clearUpd() { p.edit().remove("updCode").remove("updVer").remove("updUrl").remove("updFile").remove("updLen").apply() }
     /** ultima richiesta «Invia aggiornamento» del pannello già gestita */
     var updSeen: Long
         get() = p.getLong("updSeen", 0)
