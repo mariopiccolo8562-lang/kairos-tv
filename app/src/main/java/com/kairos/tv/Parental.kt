@@ -47,4 +47,10 @@ object Parental {
 
     /** comando «Reimposta PIN» dal pannello: si torna a 0000 e l'app richiede di sceglierne uno */
     fun reset() { Store.pin = ""; Store.pinLater = 0L; unlocked = false }
+
+    /** PIN reimpostato durante la visione: la scelta del nuovo PIN si chiede alla prima schermata dopo il lettore */
+    @Volatile var askPending = false
+
+    /** scelta del nuovo PIN subito (stessa finestra della prima installazione, con «Più tardi») */
+    fun askNow(a: Activity) { askPending = false; firstRun(a, true) }
 }

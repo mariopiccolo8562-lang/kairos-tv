@@ -443,14 +443,7 @@ class PlayerActivity : BaseActivity() {
         stopCushion()
         player?.stop()
         Pulse.watch(null)
-        try {
-            android.app.AlertDialog.Builder(this).setTitle("Visione interrotta")
-                .setMessage("Il tuo fornitore ha chiuso la visione su questo dispositivo.")
-                .setCancelable(false)
-                .setPositiveButton("OK") { _, _ -> finish() }
-                .setOnDismissListener { if (!isFinishing) finish() }
-                .show()
-        } catch (_: Exception) { finish() }
+        finish() // «Disconnetti» dal pannello: il lettore si chiude, senza avvisi al cliente
     }
 
     /* ---------------- eventi del lettore ---------------- */

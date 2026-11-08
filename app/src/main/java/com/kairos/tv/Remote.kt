@@ -15,7 +15,8 @@ import kotlin.system.exitProcess
  *   nell'app, che le mostra come «scelte dal fornitore». Oggi: modalità leggera, anteprima canali, aggiornamento in background,
  *   Home (categorie in primo piano e nascoste, vedi [HomeCfg]).
  * - Comandi (cmds): riavvia, svuota cache e riavvia, aggiorna liste, apri impostazioni, aggiorna l'app, chiudi. L'app li esegue
- *   e li conferma al pannello (POST /api/player/cmd).
+ *   e li conferma al pannello (POST /api/player/cmd), senza avvisi al cliente: si vedono solo gli effetti (riavvio, chiusura,
+ *   impostazioni aperte, schermata di Android del permesso, scelta del nuovo PIN).
  * - L'app riporta le sue impostazioni attuali (cfg) e la versione della configurazione applicata (rcv).
  */
 object Remote {
@@ -43,7 +44,7 @@ object Remote {
     /** permesso di Android «Installa app sconosciute» (serve per installare gli aggiornamenti): nessuna app può darselo da sola */
     fun canInstall(): Boolean = Build.VERSION.SDK_INT < 26 || App.I.packageManager.canRequestPackageInstalls()
     fun openInstallPerm() {
-        Ui.toast("Attiva «Consenti da questa fonte», poi premi INDIETRO")
+        Ui.toast("Attiva «Consenti da questa fonte» per gli aggiornamenti dell'app, poi premi INDIETRO")
         val tries = listOf(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + App.I.packageName)), Intent(Settings.ACTION_SECURITY_SETTINGS), Intent(Settings.ACTION_SETTINGS))
         for (i in tries) { try { App.I.startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); return } catch (_: Exception) {} }
     }
@@ -111,10 +112,12 @@ object Remote {
                 }
                 "update" -> Updater.fromPanel { info -> ack(id, true, info) }
                 "perm" -> if (canInstall()) ack(id, true, "permesso già concesso") else if (watching) ack(id, false, "visione in corso: rimandato") else { openInstallPerm(); ack(id, true, "schermata del permesso aperta sulla TV") }
+                // PIN del controllo genitori: torna 0000 senza avvisi sul «fornitore», ma il blocco non resta spento in silenzio —
+                // l'app chiede subito di sceglierne uno nuovo (come alla prima installazione, con «Più tardi»); durante la visione a lettore chiuso
                 "pin" -> {
                     Parental.reset(); ack(id, true, "PIN riportato a 0000")
-                    Ui.toast("Il fornitore ha reimpostato il PIN del controllo genitori: ora è 0000")
-                    val a = App.top; if (a != null && a !is PlayerActivity) App.main.postDelayed({ Parental.firstRun(a, true) }, 1200)
+                    val a = App.top
+                    if (a != null && a !is PlayerActivity) App.main.postDelayed({ Parental.askNow(a) }, 1000) else Parental.askPending = true
                 }
                 // prima il «vado in sfondo» (il pannello la vede subito chiusa; al massimo ~1,5 s di attesa), poi si chiude come sempre
                 "exit" -> { ack(id, true, "chiusa"); App.main.postDelayed({ Pulse.leaving { try { App.top?.finishAffinity() } catch (_: Exception) {}; App.main.postDelayed({ exitProcess(0) }, 300) } }, 700) }
