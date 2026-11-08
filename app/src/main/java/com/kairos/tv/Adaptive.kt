@@ -7,10 +7,13 @@ import android.os.SystemClock
 
 /**
  * Kairos Adaptive v1 (KAIROS_ADAPTIVE.md): classe del dispositivo (D / N / O), classe della linea
- * (weak / normal / good, salvata con la data e che torna «normal» dopo 12 ore senza misure nuove) e banda
- * misurata (media mobile esponenziale, peso 0,2 al campione nuovo, salvata al più ogni 30 s e allo stop).
- * La classe effettiva è la peggiore delle due e decide buffer, offset dalla diretta e ABR del lettore
- * (Players.build); si ricalcola a ogni avvio di canale o titolo e, se è cambiata, il lettore si ricrea.
+ * (weak / normal / good) e banda misurata (media mobile esponenziale, peso 0,2 al campione nuovo, salvata al più ogni
+ * 30 s e allo stop).
+ * - La classe della LINEA ([net]) decide la qualità (versione di partenza del canale e ABR): solo prove recenti, cioè
+ *   blocchi su 2 canali nell'ultima mezz'ora (solo in memoria) o banda misurata da meno di 2 ore. Il dispositivo non
+ *   abbassa mai la qualità da solo: una chiavetta da 1 GB con la linea buona vede i canali in FHD.
+ * - La classe effettiva ([cls], la peggiore fra dispositivo e linea) decide solo memoria e buffer del lettore.
+ * Entrambe si ricalcolano a ogni avvio di canale o titolo e, se sono cambiate, il lettore si ricrea.
  */
 object Line {
     /** classe effettiva */
@@ -52,7 +55,6 @@ object Line {
 
     /* ---------------- linea ---------------- */
     private const val STALL_WINDOW = 30 * 60_000L
-    private const val DECAY = 12 * 3600_000L
     @Volatile private var loaded = false
     @Volatile private var cls = "normal"
     @Volatile private var clsAt = 0L
@@ -72,13 +74,26 @@ object Line {
         bw = Store.bw
     }
 
-    /** weak / normal / good in questo momento (giudizio vecchio di oltre 12 ore: «normal») */
+    /**
+     * weak / normal / good in questo momento: blocchi nell'ultima mezz'ora su almeno 2 canali ⇒ weak (finché durano);
+     * altrimenti il giudizio della banda misurata, che vale 2 ore (poi «normal»: niente giudizi vecchi)
+     */
     fun line(): String {
         load()
-        return if (cls != "normal" && System.currentTimeMillis() - clsAt > DECAY) "normal" else cls
+        if (stallWeak()) return "weak"
+        return if (cls != "normal" && System.currentTimeMillis() - clsAt !in 0..QualityPolicy.BW_FRESH_MS) "normal" else cls
     }
 
-    /** classe effettiva: la peggiore fra dispositivo e linea */
+    /** classe della linea per la QUALITÀ (versione di partenza del canale, ABR): solo la connessione, mai il dispositivo */
+    fun net(): Int = when (line()) { "weak" -> WEAK; "good" -> GOOD; else -> NORMAL }
+
+    /** banda misurata da poco: solo allora conta per scendere fino all'SD e come stima iniziale del lettore */
+    fun bwFresh(): Boolean {
+        load()
+        return bw > 0 && System.currentTimeMillis() - clsAt in 0..QualityPolicy.BW_FRESH_MS
+    }
+
+    /** classe effettiva per memoria e buffer del lettore: la peggiore fra dispositivo e linea */
     fun cls(): Int {
         val d = device()
         val l = line()
@@ -89,11 +104,11 @@ object Line {
         }
     }
 
-    /** stima iniziale del misuratore di banda: quella salvata (×0,8) oppure 2 / 6 / 12 Mbps per classe */
-    fun initialBps(cls: Int): Long {
+    /** stima iniziale del misuratore di banda: quella misurata da poco (×0,8) oppure 2 / 6 / 12 Mbps per classe della linea */
+    fun initialBps(net: Int): Long {
         load()
-        if (bw > 0) return bw * 8 / 10
-        return when (cls) { WEAK -> 2_000_000L; GOOD -> 12_000_000L; else -> 6_000_000L }
+        if (bwFresh()) return bw * 8 / 10
+        return when (net) { WEAK -> 2_000_000L; GOOD -> 12_000_000L; else -> 6_000_000L }
     }
 
     /** campione di banda valido (bit/s): arriva solo dai segmenti HLS, mai dal TS o dall'anteprima */
@@ -106,24 +121,30 @@ object Line {
         save(false)
     }
 
-    /** uno stallo sul canale [key]: pesa sulla classe solo se gli stalli recenti sono su almeno 2 canali diversi */
+    /**
+     * uno stallo sul canale [key]: la linea è debole solo finché nell'ultima mezz'ora ci sono stalli su almeno 2 canali
+     * diversi (solo in memoria: dopo mezz'ora senza blocchi, o riaprendo l'app, la qualità torna piena)
+     */
     @Synchronized fun stall(key: String) {
         load()
         val now = SystemClock.elapsedRealtime()
         stalls.add(now to key)
         stalls.removeAll { now - it.first > STALL_WINDOW }
-        reeval()
-        save(false)
+        while (stalls.size > 50) stalls.removeAt(0)
     }
 
-    /** ricalcolo con una misura nuova: senza misure la classe salvata resta (e decade dopo 12 ore) */
+    @Synchronized private fun stallWeak(): Boolean {
+        val now = SystemClock.elapsedRealtime()
+        stalls.removeAll { now - it.first > STALL_WINDOW }
+        return stalls.size >= 2 && stalls.map { it.second }.distinct().size >= 2
+    }
+
+    /** ricalcolo con una misura di banda nuova (la data del giudizio è quella della misura) */
     private fun reeval() {
         val now = SystemClock.elapsedRealtime()
-        val recent = stalls.filter { now - it.first <= STALL_WINDOW }
-        val stallWeak = recent.size >= 2 && recent.map { it.second }.distinct().size >= 2
         val quiet = stalls.none { now - it.first <= 20 * 60_000L }
         val c = when {
-            stallWeak || bw in 1L until 4_000_000L -> "weak"
+            bw in 1L until 4_000_000L -> "weak"
             bw >= 15_000_000L && quiet -> "good"
             bw > 0 -> "normal"
             else -> return
@@ -141,5 +162,41 @@ object Line {
         savedAt = now
         dirty = false
         Store.saveLine(cls, clsAt, bw)
+    }
+
+    /* ---------------- versione «a scatti» imparata (QualityPolicy.Heavy) ---------------- */
+    @Volatile private var heavy: QualityPolicy.Heavy? = null
+    @Volatile private var heavyLoaded = false
+
+    private fun heavyState(): QualityPolicy.Heavy? {
+        if (!heavyLoaded) {
+            heavy = try { QualityPolicy.Heavy.load(Store.heavy) } catch (_: Exception) { null }
+            heavyLoaded = true
+        }
+        return heavy
+    }
+
+    /** immagine a scatti (decodifica hardware) sulla versione [q] del canale [key]: 2 canali in 7 giorni ⇒ si parte un gradino sotto */
+    @Synchronized fun heavy(q: Int, key: String) {
+        val h = QualityPolicy.heavyNote(heavyState(), q, key, System.currentTimeMillis())
+        if (h == heavy) return
+        heavy = h
+        try { Store.heavy = h?.save() ?: "" } catch (_: Exception) {}
+    }
+
+    /** tetto imparato per la versione di partenza (4 = nessuno) */
+    fun heavyCap(): Int = QualityPolicy.heavyCap(heavyState(), System.currentTimeMillis())
+
+    /* ---------------- schermo ---------------- */
+    @Volatile private var screen = -1
+
+    /** schermo 4K (modalità fisica dello schermo, letta una volta): sugli schermi 1080p il 4K non si vede, si parte dal FHD */
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+    fun screen4k(ctx: Context): Boolean {
+        if (screen < 0) screen = try {
+            val p = androidx.media3.common.util.Util.getCurrentDisplayModeSize(ctx)
+            if (minOf(p.x, p.y) >= 2000) 1 else 0
+        } catch (_: Throwable) { 0 }
+        return screen == 1
     }
 }

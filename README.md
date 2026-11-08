@@ -26,6 +26,17 @@ La prima versione era una pagina web dentro l'app (come Kairos Pro) e sulle chia
 
 Non ci sono, di proposito: VLC, registrazioni, multi-schermo, speed test, assistente IA, add-on, trailer.
 
+## Qualità dell'immagine (versioni dello stesso canale 4K / FHD / HD / SD)
+
+Con la linea buona la qualità non si tocca, **anche sulle chiavette da 1 GB** (regole in `QualityPolicy.kt`, provate in `QualityPolicyTest`):
+
+- **Il canale parte nella versione scelta.** Il dispositivo toglie solo il 4K, che non mostra: le chiavette deboli non lo decodificano e sugli schermi non 4K si parte dal FHD, che sembra uguale. Prima la chiavetta da 1 GB faceva partire tutto al massimo in HD (o in SD) anche con internet buono.
+- **La linea abbassa la qualità solo con prove recenti:** blocchi su almeno 2 canali nell'ultima mezz'ora (solo in memoria) oppure banda misurata da meno di 2 ore sotto i 4 Mbps (SD solo sotto i 2,5 Mbps). Prima un giudizio valeva 12 ore e una banda vecchia poteva far partire tutto in SD per sempre.
+- **Immagine «a scatti» con l'audio che va** (meno del 35% dei fotogrammi per 6 s): ricarica, versione più leggera, formato alternativo; sulle chiavette da 1 GB niente decodifica software oltre la SD. Se succede su 2 canali diversi in 7 giorni (decodifica hardware), i canali partono un gradino sotto per 7 giorni, poi si riprova.
+- **Risalita** dopo 6 minuti senza blocchi verso la versione piena per il dispositivo. «Leggerissima»: canali in HD, come prima.
+- Il dispositivo debole tiene solo i buffer più piccoli (memoria); i flussi HLS a più qualità seguono la linea, non la chiavetta.
+- Anteprima nella lista canali: i canali FHD e 4K in HD se la playlist ce l'ha (prima l'SD).
+
 ## Messa in funzione (una volta sola)
 
 1. **Il repository deve essere pubblico**: altrimenti Downloader e l'aggiornamento automatico non possono scaricare l'APK.

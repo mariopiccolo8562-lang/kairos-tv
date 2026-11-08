@@ -43,8 +43,8 @@ object Players {
         else -> Buf(20_000, 60_000, 1_000, 3_000, 48, 10_000)
     }
 
-    /** tetto di bitrate dell'ABR per classe (§4): sotto il tetto l'ABR resta attivo */
-    fun maxBitrate(cls: Int): Int = if (cls == Line.WEAK) 5_000_000 else Int.MAX_VALUE
+    /** tetto di bitrate dell'ABR per classe della LINEA (§4, Line.net): sotto il tetto l'ABR resta attivo */
+    fun maxBitrate(net: Int): Int = if (net == Line.WEAK) 5_000_000 else Int.MAX_VALUE
 
     /** anteprima nella lista canali in corso (niente lavori di fondo nel frattempo) */
     @Volatile var previewing = false
@@ -55,11 +55,11 @@ object Players {
         private set
 
     /** un solo misuratore per app: ciò che ha imparato un canale HLS vale per il successivo (l'anteprima ne ha uno suo) */
-    fun meterFor(ctx: Context, cls: Int): DefaultBandwidthMeter {
+    fun meterFor(ctx: Context, net: Int): DefaultBandwidthMeter {
         sharedMeter?.let { return it }
         synchronized(this) {
             sharedMeter?.let { return it }
-            val init = Line.initialBps(cls)
+            val init = Line.initialBps(net)
             val m = DefaultBandwidthMeter.Builder(ctx.applicationContext).setInitialBitrateEstimate(init).build()
             meterInitial = init
             sharedMeter = m
@@ -67,8 +67,12 @@ object Players {
         }
     }
 
-    /** [soft] = decodifica software (rimedio quando il decoder hardware si blocca); [cls] = classe effettiva (Line.cls()) */
-    fun build(ctx: Context, live: Boolean, soft: Boolean = false, preview: Boolean = false, cls: Int = Line.cls()): ExoPlayer {
+    /**
+     * [soft] = decodifica software (rimedio quando il decoder hardware si blocca); [cls] = classe effettiva (Line.cls(): memoria,
+     * buffer, distanza dalla diretta); [net] = classe della linea (Line.net(): qualità, ABR). La chiavetta da 1 GB ha buffer
+     * più piccoli ma, con la linea buona, la stessa qualità degli altri dispositivi
+     */
+    fun build(ctx: Context, live: Boolean, soft: Boolean = false, preview: Boolean = false, cls: Int = Line.cls(), net: Int = Line.net()): ExoPlayer {
         val http = DefaultHttpDataSource.Factory()
             .setUserAgent(Http.UA)
             .setAllowCrossProtocolRedirects(true)
@@ -113,9 +117,9 @@ object Players {
             MediaCodecUtil.getDecoderInfos(mime, secure, tunneling).sortedBy { if (it.softwareOnly) 0 else 1 }
         }
         // stima iniziale: la banda salvata (×0,8) oppure 2 / 6 / 12 Mbps per classe; l'anteprima non insegna niente alla linea
-        val meter = if (preview) DefaultBandwidthMeter.Builder(ctx).setInitialBitrateEstimate(Line.initialBps(cls)).build() else meterFor(ctx, cls)
-        // ABR nei flussi HLS a più qualità (§4): quota di banda usabile e tempo prima di salire, per classe
-        val abr = when (cls) {
+        val meter = if (preview) DefaultBandwidthMeter.Builder(ctx).setInitialBitrateEstimate(Line.initialBps(net)).build() else meterFor(ctx, net)
+        // ABR nei flussi HLS a più qualità (§4): quota di banda usabile e tempo prima di salire, per classe della linea
+        val abr = when (net) {
             Line.WEAK -> AdaptiveTrackSelection.Factory(15_000, AdaptiveTrackSelection.DEFAULT_MAX_DURATION_FOR_QUALITY_DECREASE_MS, AdaptiveTrackSelection.DEFAULT_MIN_DURATION_TO_RETAIN_AFTER_DISCARD_MS, 0.55f)
             Line.GOOD -> AdaptiveTrackSelection.Factory(6_000, AdaptiveTrackSelection.DEFAULT_MAX_DURATION_FOR_QUALITY_DECREASE_MS, AdaptiveTrackSelection.DEFAULT_MIN_DURATION_TO_RETAIN_AFTER_DISCARD_MS, 0.80f)
             else -> AdaptiveTrackSelection.Factory(10_000, AdaptiveTrackSelection.DEFAULT_MAX_DURATION_FOR_QUALITY_DECREASE_MS, AdaptiveTrackSelection.DEFAULT_MIN_DURATION_TO_RETAIN_AFTER_DISCARD_MS, 0.70f)
@@ -126,8 +130,8 @@ object Players {
         // anteprima: nei canali HLS con più qualità si prende la più bassa adatta al riquadro
         if (preview) selector.setParameters(selector.buildUponParameters().setMaxVideoSize(854, 480).setMaxVideoBitrate(1_500_000))
         else {
-            // classe debole: tetto 1080p e 5 Mbps (mai forceHighestSupportedBitrate: sotto il tetto l'ABR resta attivo)
-            if (cls == Line.WEAK) selector.setParameters(selector.buildUponParameters().setMaxVideoSize(1920, 1080).setMaxVideoBitrate(maxBitrate(cls)))
+            // linea debole: tetto 1080p e 5 Mbps (mai forceHighestSupportedBitrate: sotto il tetto l'ABR resta attivo)
+            if (net == Line.WEAK) selector.setParameters(selector.buildUponParameters().setMaxVideoSize(1920, 1080).setMaxVideoBitrate(maxBitrate(net)))
             // «Leggerissima»: con i flussi a più qualità si resta a 720p, il decoder delle chiavette vecchie respira
             if (App.max) selector.setParameters(selector.buildUponParameters().setMaxVideoSize(1280, 720))
         }

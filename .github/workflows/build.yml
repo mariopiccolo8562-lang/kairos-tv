@@ -62,7 +62,7 @@ jobs:
           KAIROS_SERVER_URL: ${{ vars.KAIROS_SERVER_URL }}
           TV_APP_NAME: ${{ vars.TV_APP_NAME }}
           TV_APP_ID: ${{ vars.TV_APP_ID }}
-        run: gradle assembleRelease --no-daemon --stacktrace
+        run: gradle testReleaseUnitTest assembleRelease --no-daemon --stacktrace
 
       - run: cp app/build/outputs/apk/release/app-release.apk kairos-tv.apk
 

@@ -168,6 +168,10 @@ object Store {
     fun saveLine(cls: String, at: Long, bw: Long) {
         p.edit().putString("lineCls", cls).putLong("lineAt", at).putLong("bw", bw).apply()
     }
+    /** versione «a scatti» imparata sul dispositivo (QualityPolicy.Heavy, vedi Line.heavy) */
+    var heavy: String
+        get() = s("heavyQ")
+        set(v) = put("heavyQ", v)
 
     var seenMsgs: Set<String>
         get() = p.getStringSet("seenMsgs", emptySet()) ?: emptySet()
