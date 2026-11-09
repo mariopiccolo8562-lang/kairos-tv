@@ -95,14 +95,37 @@ object Remote {
         for (i in 0 until cmds.length()) { val c = cmds.optJSONObject(i) ?: continue; run(c.optLong("id"), c.optString("c")) }
     }
 
-    private fun ack(id: Long, ok: Boolean, info: String) { bg { try { Panel.cmdAck(id, ok, info) } catch (_: Exception) {} } }
+    /** comandi già eseguiti (o in corso) in questa apertura: un doppione rimandato dal pannello si conferma soltanto */
+    private val seen = CmdSeen()
+
+    private fun send(id: Long, ok: Boolean, info: String) { bg { try { Panel.cmdAck(id, ok, info) } catch (_: Exception) {} } }
+
+    private fun ack(id: Long, ok: Boolean, info: String) {
+        seen.finish(id, ok, info)
+        send(id, ok, info)
+    }
+
+    /**
+     * Conferma, poi [then] (riavvio o chiusura) appena la conferma è arrivata, al massimo dopo [maxMs]: prima l'app si
+     * riavviava 0,7 s dopo averla mandata e con la rete lenta la conferma si perdeva (il pannello rimandava il comando)
+     */
+    private fun ackThen(id: Long, info: String, maxMs: Long, then: () -> Unit) {
+        seen.finish(id, true, info)
+        val once = java.util.concurrent.atomic.AtomicBoolean(false)
+        val go = Runnable { if (once.compareAndSet(false, true)) then() }
+        App.main.postDelayed(go, maxMs)
+        net { try { Panel.cmdAck(id, true, info) } catch (_: Exception) {} finally { App.main.post(go) } }
+    }
 
     private fun run(id: Long, c: String) {
         ui {
+            val was = seen.arrive(id)
+            if (was === CmdSeen.BUSY) return@ui // ancora in corso (es. controllo dell'aggiornamento): la conferma arriva a lavoro finito
+            if (was != null) { send(id, was.ok, was.info); return@ui } // già eseguito, la conferma si era persa: solo la conferma
             val watching = App.top is PlayerActivity
             when (c) {
-                "reload" -> { ack(id, true, "riavvio"); App.main.postDelayed({ restart() }, 700) }
-                "cache" -> { ack(id, true, "cache svuotata"); App.main.postDelayed({ bg { clearAll(); ui { restart() } } }, 700) }
+                "reload" -> ackThen(id, "riavvio", 2_500) { restart() }
+                "cache" -> ackThen(id, "cache svuotata", 2_500) { bg { clearAll(); ui { restart() } } }
                 "sync" -> if (watching) ack(id, false, "visione in corso: rimandato") else { Sync.force(); ack(id, true, "liste in aggiornamento") }
                 "settings" -> {
                     if (watching) App.top?.finish()
@@ -120,7 +143,7 @@ object Remote {
                     if (a != null && a !is PlayerActivity) App.main.postDelayed({ Parental.askNow(a) }, 1000) else Parental.askPending = true
                 }
                 // prima il «vado in sfondo» (il pannello la vede subito chiusa; al massimo ~1,5 s di attesa), poi si chiude come sempre
-                "exit" -> { ack(id, true, "chiusa"); App.main.postDelayed({ Pulse.leaving { try { App.top?.finishAffinity() } catch (_: Exception) {}; App.main.postDelayed({ exitProcess(0) }, 300) } }, 700) }
+                "exit" -> ackThen(id, "chiusa", 2_500) { Pulse.leaving { try { App.top?.finishAffinity() } catch (_: Exception) {}; App.main.postDelayed({ exitProcess(0) }, 300) } }
                 else -> ack(id, false, "comando non supportato")
             }
         }
