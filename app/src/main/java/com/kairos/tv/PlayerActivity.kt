@@ -217,7 +217,7 @@ class PlayerActivity : BaseActivity() {
     private lateinit var notice: TextView
     private val noticeR = Runnable { notice.visibility = View.GONE }
 
-    // riquadro risoluzione e FPS dei canali in diretta (permesso «resInd» del cliente)
+    // riquadro risoluzione e FPS dei canali in diretta (permesso «resInd» del cliente e voce «qbox» del pannello, vedi QBox)
     private lateinit var resInd: TextView
     /** fine della comparsa a tempo: ~6 s dal primo fotogramma, ~4 s da un cambio di risoluzione */
     private var resUntil = 0L
@@ -1305,24 +1305,26 @@ class PlayerActivity : BaseActivity() {
     }
 
     /* ---------------- riquadro risoluzione e FPS (solo canali in diretta) ---------------- */
-    /** permesso del cliente «resInd» (assente = consentito); film e serie restano come sono */
-    private fun resOn(): Boolean = live && Panel.state?.perm("resInd") != false
+    /** permesso del cliente «resInd» (assente = consentito) e voce «qbox» del pannello ("off" = mai, vedi [QBox]); film e serie restano come sono */
+    private fun resOn(): Boolean = live && QBox.shown(Panel.state?.perm("resInd") != false, Remote.qbox)
 
-    /** «FHD · 1080p · 50 fps»: qualità, righe e fotogrammi al secondo (dichiarati dal flusso, altrimenti misurati dal decoder) */
+    /**
+     * «FHD · 1080p · 50 fps» (con la voce «qbox» "noq" «1080p · 50 fps»): qualità, righe e fotogrammi al secondo
+     * (dichiarati dal flusso, altrimenti misurati dal decoder)
+     */
     private fun resText(): String {
         val p = player ?: return ""
         val f = p.videoFormat
         val h = p.videoSize.height.takeIf { it > 0 } ?: f?.height?.takeIf { it > 0 } ?: return ""
-        val q = when { h >= 2000 -> "4K"; h >= 1000 -> "FHD"; h >= 700 -> "HD"; else -> "SD" }
         val fr = f?.frameRate ?: 0f
         val m = fpsShown()
         val fps = when {
-            fr > 0f && Math.abs(fr - Math.round(fr)) < 0.05f -> " · ${Math.round(fr)} fps"
-            fr > 0f -> " · " + String.format(Locale.ITALY, "%.2f", fr) + " fps"
-            m > 0 -> " · $m fps" // il flusso (es. TS) non li dichiara: misurati
+            fr > 0f && Math.abs(fr - Math.round(fr)) < 0.05f -> "${Math.round(fr)}"
+            fr > 0f -> String.format(Locale.ITALY, "%.2f", fr)
+            m > 0 -> "$m" // il flusso (es. TS) non li dichiara: misurati
             else -> ""
         }
-        return "$q · ${h}p$fps"
+        return QBox.text(QBox.tag(h), h, fps, Remote.qbox)
     }
 
     /** ogni secondo, mentre il video va davvero: fotogrammi mostrati dal decoder / tempo trascorso, smorzati (0,6 vecchio + 0,4 nuovo) */
@@ -1385,7 +1387,7 @@ class PlayerActivity : BaseActivity() {
         resInd.visibility = View.GONE
     }
 
-    /** permessi cambiati dal pannello durante la visione (es. «resInd»): il riquadro si riallinea */
+    /** permessi o impostazioni cambiati dal pannello durante la visione (es. «resInd», voce «qbox»): il riquadro si riallinea */
     override fun onStateChanged() { resShow() }
 
     private fun showMsg(t: String) {

@@ -46,6 +46,15 @@ Voce `adult` del controllo remoto (spunta del pannello «Nascondi gli adulti dal
 
 Riconoscimento in `AdultFilter.kt` (normalizzazione NFKD e le due espressioni del contratto comune: «Adult Swim» resta, per i titoli contano solo le parole forti, quindi «Sex Education» resta), regole in `HomeCfg.kt`. Prove: `AdultFilterTest` (i 94 esempi di `src/test/resources/adult-vectors.json`) e `HomeCfgTest`. Ogni categoria si riconosce una volta sola (cache per nome), i titoli solo quando si carica una riga della Home; niente lavoro in più durante la visione.
 
+## Riquadro della qualità nel lettore
+
+Voce `qbox` del controllo remoto, uguale in tutte le app Kairos, per il riquadro in alto a destra dei canali in diretta («FHD · 1080p · 50 fps»: ~6 s all'apertura del canale, ~4 s a ogni cambio di risoluzione e sempre con la barra informazioni):
+- `off`: il riquadro non compare mai, come con il permesso «resInd» del cliente bloccato.
+- `noq`: il riquadro resta senza la sigla di qualità: «1080p · 50 fps».
+- `full`, vuota, assente o qualsiasi altro valore: come prima.
+
+Il permesso «resInd» bloccato lo nasconde sempre. Non cambiano i nomi dei canali, gli avvisi, la qualità adattiva, la sigla «FHD · LIVE» della barra informazioni e i dati mandati al pannello (risoluzione e FPS in «Online ora»). Una voce cambiata durante la visione vale dal prossimo aggiornamento del riquadro. Regole in `QBox.kt`, prove in `QBoxTest`.
+
 ## Messa in funzione (una volta sola)
 
 1. **Il repository deve essere pubblico**: altrimenti Downloader e l'aggiornamento automatico non possono scaricare l'APK.
