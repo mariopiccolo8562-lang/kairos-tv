@@ -108,10 +108,14 @@ object Db {
         q.args.addAll(list)
     }
 
-    /** senza i contenuti delle categorie [skip] (nascoste dalla Home dal pannello, vedi [HomeCfg]) */
+    /**
+     * senza i contenuti delle categorie [skip] (nascoste dalla Home dal pannello, vedi [HomeCfg]). SQLite accetta al massimo
+     * 999 valori per lettura: con i preferiti (La mia lista nella Home senza adulti) si usa solo lo spazio che resta.
+     */
     private fun skipCats(q: Q, skip: List<String>) {
         if (skip.isEmpty()) return
-        val list = skip.take(900)
+        val list = skip.take(minOf(900, 990 - q.args.size).coerceAtLeast(0))
+        if (list.isEmpty()) return
         q.where += " AND cat NOT IN (" + list.joinToString(",") { "?" } + ")"
         q.args.addAll(list)
     }
@@ -249,15 +253,41 @@ object Db {
         return out
     }
 
-    /** titolo in evidenza: il più recente con un'immagine, fuori dalle categorie [skip] */
-    fun featured(table: String, pls: List<String>, kids: Boolean, skip: List<String> = emptyList()): Card? {
+    /**
+     * titolo in evidenza: il più recente con un'immagine, fuori dalle categorie [skip];
+     * [clean] (Home senza adulti): il primo fra i più recenti che non ha un nome per adulti, così il riquadro non resta vuoto
+     */
+    fun featured(table: String, pls: List<String>, kids: Boolean, skip: List<String> = emptyList(), clean: Boolean = false): Card? {
         if (pls.isEmpty()) return null
         val q = base(pls, kids)
         skipCats(q, skip)
         val plot = if (table == "series") "plot" else "''"
-        r.rawQuery("SELECT _id, k, name, img, year, rating, $plot FROM $table WHERE ${q.where} AND img LIKE 'http%' ORDER BY added DESC, _id LIMIT 1", q.args.toTypedArray()).use { c ->
-            return if (c.moveToFirst()) Card(table, c.getLong(0), c.getString(1) ?: "", c.getString(2) ?: "", c.getString(3) ?: "", c.getString(4) ?: "", c.getString(5) ?: "", c.getString(6) ?: "") else null
+        val limit = if (clean) 50 else 1
+        r.rawQuery("SELECT _id, k, name, img, year, rating, $plot FROM $table WHERE ${q.where} AND img LIKE 'http%' ORDER BY added DESC, _id LIMIT $limit", q.args.toTypedArray()).use { c ->
+            while (c.moveToNext()) {
+                val name = c.getString(2) ?: ""
+                if (clean && AdultFilter.title(name)) continue
+                return Card(table, c.getLong(0), c.getString(1) ?: "", name, c.getString(3) ?: "", c.getString(4) ?: "", c.getString(5) ?: "", c.getString(6) ?: "")
+            }
+            return null
         }
+    }
+
+    /**
+     * nome della categoria di alcuni titoli di [table] (vod / series), per chiave k: serve a «Continua a guardare» nella Home
+     * senza adulti. Una sola lettura con gli indici; se non riesce restano i soli nomi dei titoli.
+     */
+    fun catNames(table: String, keys: Collection<String>): Map<String, String> {
+        val list = keys.filter { it.isNotEmpty() }.distinct().take(200)
+        if (list.isEmpty()) return emptyMap()
+        val out = HashMap<String, String>()
+        try {
+            val ph = list.joinToString(",") { "?" }
+            r.rawQuery("SELECT t.k, c.name FROM $table t JOIN cat c ON c.kind = ? AND c.pl = t.pl AND c.id = t.cat WHERE t.k IN ($ph)", arrayOf(table) + list.toTypedArray()).use { c ->
+                while (c.moveToNext()) { val k = c.getString(0) ?: continue; out[k] = c.getString(1) ?: "" }
+            }
+        } catch (_: Exception) {}
+        return out
     }
 
     /* ---------------- una riga ---------------- */

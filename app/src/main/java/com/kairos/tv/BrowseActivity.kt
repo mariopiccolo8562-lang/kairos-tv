@@ -50,6 +50,10 @@ open class BrowseActivity : BaseActivity() {
         var count = 0
         /** categorie i cui titoli non entrano nella riga (nascoste dalla Home dal pannello) */
         var skip: List<String> = emptyList()
+        /** Home senza adulti (vedi [HomeCfg]): fuori anche i titoli con un nome per adulti, controllati quando la riga si carica */
+        var clean = false
+        /** La mia lista vuota: si mostra con il suggerimento (false = tutti i suoi titoli sono fuori dalla Home: la riga sparisce) */
+        @Volatile var hint = true
     }
 
     companion object {
@@ -192,38 +196,43 @@ open class BrowseActivity : BaseActivity() {
                 cats[t] = cs
                 hide[t] = cs.filter { HomeCfg.hidden(it.name) }.map { it.id }
             }
+            // Home senza adulti (rc «adult» diverso da "on", vedi HomeCfg): le categorie per adulti sono già tra le nascoste;
+            // in più nessuna riga mostra titoli delle categorie nascoste o con un nome per adulti (La mia lista e Continua a guardare comprese)
+            val clean = k == "home" && HomeCfg.noAdult()
             var h: Db.Card? = null
             if (k != "list") {
                 val ft = if (k == "series") "series" else "vod"
-                h = Db.featured(ft, pls, kids, hide[ft].orEmpty())
-                if (h == null && k == "home") h = Db.featured("series", pls, kids, hide["series"].orEmpty())
+                h = Db.featured(ft, pls, kids, hide[ft].orEmpty(), clean)
+                if (h == null && k == "home") h = Db.featured("series", pls, kids, hide["series"].orEmpty(), clean)
             }
             list.add(Row("hero", "", T_HERO))
             if (k == "home") {
-                val rec = Store.recent()
+                val rec = if (clean) homeRecent(Store.recent()) else Store.recent()
                 if (rec.isNotEmpty()) list.add(Row("recent", "Continua a guardare", T_RECENT).also { it.recent = rec })
             }
             // categorie in primo piano (dal pannello): subito dopo «Continua a guardare», prima di tutte le altre righe
             val promoted = HashSet<String>()
             if (k == "home") for ((t, c) in HomeCfg.top(tables.flatMap { t -> cats[t].orEmpty().map { t to it } })) {
                 promoted.add(c.id)
-                list.add(catRow(t, c))
+                list.add(catRow(t, c).also { it.clean = clean })
             }
             for (t in tables) {
                 val name = if (t == "vod") "Film" else "Serie TV"
-                if (Store.favs(t).isNotEmpty() || k == "list") list.add(Row("fav$t", if (tables.size > 1) "La mia lista · $name" else "La mia lista", T_POSTERS, t, Db.FAV))
+                if (Store.favs(t).isNotEmpty() || k == "list") list.add(Row("fav$t", if (tables.size > 1) "La mia lista · $name" else "La mia lista", T_POSTERS, t, Db.FAV).also {
+                    if (clean) { it.clean = true; it.skip = hide[t].orEmpty() }
+                })
             }
             if (k != "list") {
-                for (t in tables) list.add(Row("new$t", if (t == "vod") "Film aggiunti di recente" else "Serie TV aggiunte di recente", T_POSTERS, t, Db.NEW).also { it.skip = hide[t].orEmpty() })
+                for (t in tables) list.add(Row("new$t", if (t == "vod") "Film aggiunti di recente" else "Serie TV aggiunte di recente", T_POSTERS, t, Db.NEW).also { it.skip = hide[t].orEmpty(); it.clean = clean })
                 for (t in tables) {
                     val cs = cats[t].orEmpty()
                     // Home: le solite prime 5, senza le nascoste e senza quelle già in primo piano; Film e Serie: tutte, le nascoste in fondo
                     val show = if (k == "home") cs.filter { it.id !in promoted && !HomeCfg.hidden(it.name) }.take(5) else HomeCfg.order(cs)
-                    for (c in show) list.add(catRow(t, c))
+                    for (c in show) list.add(catRow(t, c).also { it.clean = clean })
                 }
             }
             // le prime righe arrivano già piene: la schermata compare completa
-            list.filter { it.type == T_POSTERS }.take(3).forEach { r -> r.cards = Db.cards(r.table, r.cat, pls, kids, Store.favs(r.table), LIMIT, r.skip) }
+            list.filter { it.type == T_POSTERS }.take(3).forEach { r -> val favs = Store.favs(r.table); r.cards = cardsOf(r, pls, kids, favs); r.hint = hintOf(r, favs) }
             ui {
                 if (isFinishing || my != seq) return@ui
                 hero = h
@@ -243,15 +252,51 @@ open class BrowseActivity : BaseActivity() {
     private fun refreshDynamic() {
         val list = adapter.items
         if (kind == "home") {
-            val rec = Store.recent()
-            val i = list.indexOfFirst { it.type == T_RECENT }
-            if (i >= 0 && rec.isNotEmpty()) { list[i].recent = rec; adapter.notifyItemChanged(i) }
-            else if ((i >= 0) != rec.isNotEmpty()) { build(); return }
+            if (HomeCfg.noAdult()) {
+                // Home senza adulti: le categorie dei titoli si leggono dall'archivio, fuori dal thread dell'interfaccia
+                val my = seq
+                bg {
+                    val rec = homeRecent(Store.recent())
+                    ui { if (!isFinishing && my == seq) setRecent(rec) }
+                }
+            } else if (!setRecent(Store.recent())) return
         }
         list.forEachIndexed { i, r -> if (r.cat == Db.FAV) { r.cards = null; r.loading = false; adapter.notifyItemChanged(i) } }
         val hasFav = list.any { it.cat == Db.FAV }
         if (!hasFav && (Store.favs("vod").isNotEmpty() || Store.favs("series").isNotEmpty())) build()
     }
+
+    /** «Continua a guardare» nuovo nella riga; false = la riga compare o sparisce, quindi la Home si ricostruisce */
+    private fun setRecent(rec: List<JSONObject>): Boolean {
+        val list = adapter.items
+        val i = list.indexOfFirst { it.type == T_RECENT }
+        if (i >= 0 && rec.isNotEmpty()) { list[i].recent = rec; adapter.notifyItemChanged(i) }
+        else if ((i >= 0) != rec.isNotEmpty()) { build(); return false }
+        return true
+    }
+
+    /**
+     * «Continua a guardare» nella Home senza adulti: fuori i film e le serie delle categorie nascoste o per adulti e quelli
+     * con un nome per adulti (vedi [HomeCfg.blocked]). Legge l'archivio: solo fuori dal thread dell'interfaccia.
+     */
+    private fun homeRecent(all: List<JSONObject>): List<JSONObject> {
+        if (all.isEmpty()) return all
+        fun tableOf(o: JSONObject) = if (o.optString("kind") == "series") "series" else "vod"
+        fun keyOf(o: JSONObject) = if (o.optString("kind") == "series") o.optString("group") else o.optString("id")
+        val names = HashMap<String, Map<String, String>>()
+        for ((t, items) in all.groupBy { tableOf(it) }) names[t] = Db.catNames(t, items.map { keyOf(it) })
+        return all.filter { o -> !HomeCfg.blocked(o.optString("title"), names[tableOf(o)]?.get(keyOf(o))) }
+    }
+
+    /** i titoli di una riga; nella Home senza adulti ([Row.clean]) senza quelli con un nome per adulti */
+    private fun cardsOf(r: Row, pls: List<String>, kids: Boolean, favs: Set<String>): List<Db.Card> {
+        if (!r.clean) return Db.cards(r.table, r.cat, pls, kids, favs, LIMIT, r.skip)
+        // qualche titolo in più dall'archivio: la riga resta piena anche se ne toglie qualcuno
+        return Db.cards(r.table, r.cat, pls, kids, favs, LIMIT + 10, r.skip).filter { !AdultFilter.title(it.name) }.take(LIMIT)
+    }
+
+    /** La mia lista nella Home senza adulti: il suggerimento «vuota» solo se la lista è vuota davvero, altrimenti la riga sparisce */
+    private fun hintOf(r: Row, favs: Set<String>): Boolean = !r.clean || r.cat != Db.FAV || favs.isEmpty()
 
     private fun loadRow(r: Row, pos: Int) {
         if (r.loading || r.cards != null) return
@@ -261,10 +306,11 @@ open class BrowseActivity : BaseActivity() {
         val favs = Store.favs(r.table)
         val my = seq
         bg {
-            val c = Db.cards(r.table, r.cat, pls, kids, favs, LIMIT, r.skip)
+            val c = cardsOf(r, pls, kids, favs)
             ui {
                 if (isFinishing || my != seq) return@ui
                 r.cards = c
+                r.hint = hintOf(r, favs)
                 r.loading = false
                 val i = adapter.items.indexOf(r)
                 if (i >= 0) adapter.notifyItemChanged(i)
@@ -401,10 +447,11 @@ open class BrowseActivity : BaseActivity() {
             if (h is HeroH) { bindHero(h); return }
             h as RowH
             h.title.text = r.title
-            val empty = (r.type == T_POSTERS && r.cards?.isEmpty() == true && r.cat != Db.FAV) ||
+            // una riga vuota non si vede (La mia lista vuota sì, con il suggerimento, se non è vuota solo per la Home senza adulti)
+            val empty = (r.type == T_POSTERS && r.cards?.isEmpty() == true && (r.cat != Db.FAV || !r.hint)) ||
                 (r.type == T_RECENT && r.recent.isEmpty())
             h.itemView.layoutParams.height = if (empty) 0 else ViewGroup.LayoutParams.WRAP_CONTENT
-            if (r.type == T_POSTERS && r.cat == Db.FAV && r.cards?.isEmpty() == true) h.title.text = r.title + "  ·  vuota: tieni premuto OK su una locandina per aggiungerla"
+            if (r.type == T_POSTERS && r.cat == Db.FAV && r.cards?.isEmpty() == true && r.hint) h.title.text = r.title + "  ·  vuota: tieni premuto OK su una locandina per aggiungerla"
             if (h.cards.row !== r) { h.cards.row = r; h.list.scrollToPosition(0) }
             h.cards.notifyDataSetChanged()
             if (r.type == T_POSTERS && r.cards == null) loadRow(r, i)
