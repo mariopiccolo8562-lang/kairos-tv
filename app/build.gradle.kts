@@ -7,8 +7,12 @@ fun env(name: String): String? = System.getenv(name)?.takeIf { it.isNotBlank() }
 val keystore = env("KS_PATH")?.let { file(it) }?.takeIf { it.exists() }
 // pannello Kairos (lo stesso di KAIROS TV); la variabile KAIROS_SERVER_URL del repository, se c'è, lo sostituisce
 val serverUrl = (env("KAIROS_SERVER_URL") ?: "https://kairos-panel.mariopiccolo8562.workers.dev").trimEnd('/').replace("\"", "")
-// aggiornamenti: direttamente dalle release di questo repository (Kairos TV è separata da Kairos Pro)
-val updateUrl = "https://github.com/" + (env("GITHUB_REPOSITORY") ?: "mariopiccolo8562-lang/kairos-tv") + "/releases/latest/download/kairos-tv.json"
+// download e aggiornamenti: un solo indirizzo (oggi il pannello), da cambiare quando arriva il dominio dedicato ai download;
+// l'app chiede <DL_BASE>/get/tv.json, poi panel-kairos.com (vedi UpdFeed.kt); la variabile KAIROS_DL_BASE, se c'è, lo sostituisce
+val dlBase = (env("KAIROS_DL_BASE") ?: "https://panel-kairos.com").trimEnd('/').replace("\"", "")
+// riserva degli aggiornamenti, solo se il pannello non risponde: kairos-tv.json dell'ultima release di questo repository
+// (Kairos TV è separata da Kairos Pro); con il repository privato fallisce senza danni
+val updateFallback = "https://github.com/" + (env("GITHUB_REPOSITORY") ?: "mariopiccolo8562-lang/kairos-tv") + "/releases/latest/download/kairos-tv.json"
 
 android {
     namespace = "com.kairos.tv"
@@ -24,7 +28,8 @@ android {
         versionName = env("VERSION_NAME") ?: "1.0.0"
         resValue("string", "app_name", env("TV_APP_NAME") ?: "Kairos TV")
         buildConfigField("String", "SERVER_URL", "\"$serverUrl\"")
-        buildConfigField("String", "UPDATE_URL", "\"$updateUrl\"")
+        buildConfigField("String", "DL_BASE", "\"$dlBase\"")
+        buildConfigField("String", "UPDATE_URL_FALLBACK", "\"$updateFallback\"")
         // Fire TV / Android TV / telefoni sono ARM: niente x86, APK più piccolo
         ndk { abiFilters += listOf("armeabi-v7a", "arm64-v8a") }
         // l'app parla solo italiano: delle librerie (lettore, ecc.) restano i testi in italiano e quelli di base,

@@ -51,7 +51,7 @@ Riconoscimento in `AdultFilter.kt` (normalizzazione NFKD e le due espressioni de
 1. **Il repository deve essere pubblico**: altrimenti Downloader e l'aggiornamento automatico non possono scaricare l'APK.
 2. **Chiave di firma**: in *Settings → Secrets and variables → Actions → New repository secret* crea `ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_PASSWORD`, `ANDROID_KEY_ALIAS` (file `LEGGIMI-SEGRETI.txt`).
    > ⚠️ Se perdi la chiave di firma non potrai più aggiornare l'app sui dispositivi dei clienti.
-3. Facoltativo, in *Variables*: `TV_APP_NAME` (nome sotto l'icona, predefinito «Kairos TV»), `KAIROS_SERVER_URL` (se il pannello cambia indirizzo; predefinito quello su workers.dev).
+3. Facoltativo, in *Variables*: `TV_APP_NAME` (nome sotto l'icona, predefinito «Kairos TV»), `KAIROS_SERVER_URL` (se il pannello cambia indirizzo; predefinito quello su workers.dev), `KAIROS_DL_BASE` (indirizzo dei download e degli aggiornamenti; predefinito `https://panel-kairos.com`).
 
 ## Pubblicare una versione
 
@@ -59,7 +59,7 @@ Riconoscimento in `AdultFilter.kt` (normalizzazione NFKD e le due espressioni de
 
 - Link fisso per **Downloader** e per lo store:
   `https://github.com/mariopiccolo8562-lang/kairos-tv/releases/latest/download/kairos-tv.apk`
-- Le app installate leggono `kairos-tv.json` dell'ultima release e propongono l'aggiornamento da sole.
+- Le app installate chiedono gli aggiornamenti al pannello, `https://panel-kairos.com/get/tv.json` (indirizzo dei download `DL_BASE` in `app/build.gradle.kts`, variabile `KAIROS_DL_BASE`), scaricano l'APK dal link che c'è dentro e propongono l'aggiornamento da sole; solo se il pannello non risponde leggono `kairos-tv.json` dell'ultima release (riserva finché il repository è pubblico).
 
 Numerazione: correzioni sulla terza cifra, cambiamenti grossi sulla versione maggiore.
 

@@ -276,20 +276,23 @@ object Panel {
     }
 
     /**
-     * Versione più recente di Kairos TV: kairos-tv.json dell'ultima release del repository kairos-tv
-     * (pubblicato dal workflow a ogni tag vX.Y.Z). Non dipende da KAIROS TV.
+     * Versione più recente di Kairos TV: tv.json dall'indirizzo dei download (BuildConfig.DL_BASE, oggi il pannello
+     * panel-kairos.com) e, solo se il pannello non risponde, risponde con un errore o con un file non valido, come riserva
+     * kairos-tv.json dell'ultima release del repository kairos-tv (pubblicato dal workflow a ogni tag vX.Y.Z); vedi [UpdFeed].
+     * L'APK si scarica dal campo «url» del file trovato. null = nessun file valido (rete giù): si riprova più tardi.
      */
-    fun update(): JSONObject? = try {
-        val r = Http.text(BuildConfig.UPDATE_URL, connectMs = 12_000, readMs = 15_000)
-        if (r.code != 200) null else {
-            val j = JSONObject(r.text)
-            val v = j.optString("version").trim().removePrefix("v")
-            val m = Regex("^(\\d{1,3})\\.(\\d{1,2})\\.(\\d{1,2})$").find(v)
-            val code = m?.let { it.groupValues[1].toInt() * 10000 + it.groupValues[2].toInt() * 100 + it.groupValues[3].toInt() } ?: j.optInt("versionCode", 0)
-            val url = j.optString("url")
-            JSONObject().put("apk", if (code > 0 && url.startsWith("https://")) JSONObject().put("versionCode", code).put("version", v).put("url", url) else JSONObject.NULL)
-        }
-    } catch (_: Exception) { null }
+    fun update(): JSONObject? = UpdFeed.first(UpdFeed.urls(BuildConfig.DL_BASE, "tv", BuildConfig.UPDATE_URL_FALLBACK)) { updFeed(it) }
+
+    /** un file degli aggiornamenti: {"apk": {versionCode, version, url}} se è valido, altrimenti null */
+    private fun updFeed(src: String): JSONObject? {
+        val r = Http.text(src, connectMs = 12_000, readMs = 15_000)
+        if (r.code != 200) return null
+        val j = JSONObject(r.text)
+        val v = j.optString("version").trim().removePrefix("v")
+        val code = UpdFeed.code(v, j.optInt("versionCode", 0))
+        val url = j.optString("url")
+        return if (UpdFeed.valid(code, url)) JSONObject().put("apk", JSONObject().put("versionCode", code).put("version", v).put("url", url)) else null
+    }
 
     /** testo «Privacy e condizioni»: quello del pannello, altrimenti la pagina pubblica /privacy */
     fun privacyText(): String {

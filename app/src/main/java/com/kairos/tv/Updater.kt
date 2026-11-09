@@ -23,7 +23,8 @@ import java.security.MessageDigest
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Aggiornamento automatico dalle release di GitHub (kairos-tv.json).
+ * Aggiornamento automatico: file degli aggiornamenti dal pannello (/get/tv.json; riserva kairos-tv.json delle release di
+ * GitHub, vedi [UpdFeed]) e APK dal link che c'è dentro.
  * Si controlla a ogni apertura dell'app (al massimo ogni 10 minuti) e ogni ora mentre resta aperta.
  * Aggiornamento in background (scelta del cliente o imposta dal pannello, acceso di serie): la versione nuova
  * si scarica e si verifica in silenzio (solo su Wi-Fi o cavo, mai durante la visione); quando è pronta l'app
