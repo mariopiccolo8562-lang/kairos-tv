@@ -51,9 +51,10 @@ Riconoscimento in `AdultFilter.kt` (normalizzazione NFKD e le due espressioni de
 Voce `qbox` del controllo remoto, uguale in tutte le app Kairos, per il riquadro in alto a destra dei canali in diretta («FHD · 1080p · 50 fps»: ~6 s all'apertura del canale, ~4 s a ogni cambio di risoluzione e sempre con la barra informazioni):
 - `off`: il riquadro non compare mai, come con il permesso «resInd» del cliente bloccato.
 - `noq`: il riquadro resta senza la sigla di qualità: «1080p · 50 fps».
+- `noq` e `off`: anche l'etichetta in cima alla barra informazioni perde la sigla («LIVE» invece di «FHD · LIVE»; su film e serie sparisce).
 - `full`, vuota, assente o qualsiasi altro valore: come prima.
 
-Il permesso «resInd» bloccato lo nasconde sempre. Non cambiano i nomi dei canali, gli avvisi, la qualità adattiva, la sigla «FHD · LIVE» della barra informazioni e i dati mandati al pannello (risoluzione e FPS in «Online ora»). Una voce cambiata durante la visione vale dal prossimo aggiornamento del riquadro. Regole in `QBox.kt`, prove in `QBoxTest`.
+Il permesso «resInd» bloccato lo nasconde sempre. Non cambiano i nomi dei canali, gli avvisi, la qualità adattiva, e i dati mandati al pannello (risoluzione e FPS in «Online ora»). Una voce cambiata durante la visione vale dal prossimo aggiornamento del riquadro. Regole in `QBox.kt`, prove in `QBoxTest`.
 
 ## Messa in funzione (una volta sola)
 

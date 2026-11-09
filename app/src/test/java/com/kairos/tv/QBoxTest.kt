@@ -83,4 +83,17 @@ class QBoxTest {
             assertEquals("", QBox.text("SD", -1, "", v))
         }
     }
+
+    @Test
+    fun etichettaDellaBarraSenzaSiglaConNoqEOff() {
+        assertEquals("FHD · LIVE", QBox.badge("FHD", true, null))
+        assertEquals("FHD · LIVE", QBox.badge("FHD", true, "full"))
+        assertEquals("4K", QBox.badge("4K", false, "qualsiasi"))
+        for (v in listOf("noq", "off")) {
+            assertEquals("«$v»", "LIVE", QBox.badge("FHD", true, v))
+            assertEquals("«$v»", "", QBox.badge("4K", false, v))
+        }
+        assertEquals("LIVE", QBox.badge("", true, null))
+        assertEquals("", QBox.badge("", false, null))
+    }
 }

@@ -37,4 +37,13 @@ object QBox {
         if (fps.isNotBlank()) parts.add(fps.trim() + " fps")
         return parts.joinToString(" · ")
     }
+
+    /**
+     * Etichetta in cima alla barra informazioni del lettore («FHD · LIVE» sui canali, «FHD» su film e serie): con [qbox]
+     * "noq" o "off" senza la sigla di qualità, cioè «LIVE» sui canali e niente su film e serie (l'etichetta sparisce).
+     */
+    fun badge(q: String, live: Boolean, qbox: String?): String {
+        val qq = if (mode(qbox) == FULL) q.trim() else ""
+        return if (live) (if (qq.isEmpty()) "LIVE" else "$qq · LIVE") else qq
+    }
 }
