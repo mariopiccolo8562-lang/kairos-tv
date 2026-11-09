@@ -23,8 +23,8 @@ import java.security.MessageDigest
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Aggiornamento automatico: file degli aggiornamenti dal pannello (/get/tv.json; riserva kairos-tv.json delle release di
- * GitHub, vedi [UpdFeed]) e APK dal link che c'è dentro.
+ * Aggiornamento automatico: file degli aggiornamenti da store-k.download o dal pannello (/get/tv.json; riserva
+ * kairos-tv.json delle release di GitHub, vedi [UpdFeed]) e APK dal link che c'è dentro, poi dalle basi successive.
  * Si controlla a ogni apertura dell'app (al massimo ogni 10 minuti) e ogni ora mentre resta aperta.
  * Aggiornamento in background (scelta del cliente o imposta dal pannello, acceso di serie): la versione nuova
  * si scarica e si verifica in silenzio (solo su Wi-Fi o cavo, mai durante la visione); quando è pronta l'app
@@ -197,9 +197,21 @@ object Updater {
         try { dir().listFiles()?.forEach { if (it != keep && it.name.endsWith(".apk")) it.delete() } } catch (_: Exception) {}
     }
 
-    /** scarica [url] in [out] e lo verifica; [progress] riceve 0-99; [pause] = vero se bisogna interrompere (visione iniziata) */
-    private fun fetch(url: String, out: File, progress: ((Int) -> Unit)?, pause: (() -> Boolean)? = null) {
-        val c = Http.open(url, connectMs = 20_000, readMs = 30_000)
+    /**
+     * scarica l'APK del link [url] del file degli aggiornamenti in [out] e lo verifica; se non riesce (rete, errore HTTP,
+     * file sbagliato) lo stesso APK dalle basi successive (/get/tv.apk) e alla fine dall'ultima release di GitHub, vedi
+     * [UpdFeed.apkUrls]. [progress] riceve 0-99; [pause] = vero se bisogna interrompere (visione iniziata): non è un errore,
+     * si riprova più tardi senza passare alle altre basi.
+     */
+    private fun fetch(url: String, out: File, progress: ((Int) -> Unit)?, pause: (() -> Boolean)? = null) =
+        UpdFeed.firstOk(UpdFeed.apkUrls(url, BuildConfig.DL_BASE, "tv", BuildConfig.APK_URL_FALLBACK), { it is Paused }) {
+            if (pause?.invoke() == true) throw Paused() // visione iniziata: nessun altro tentativo adesso
+            fetchOne(it, out, progress, pause)
+        }
+
+    /** scarica [url] in [out] e lo verifica (un solo indirizzo) */
+    private fun fetchOne(url: String, out: File, progress: ((Int) -> Unit)?, pause: (() -> Boolean)?) {
+        val c = Http.open(url, connectMs = 10_000, readMs = 30_000)
         try {
             if (c.responseCode != 200) throw Exception(if (c.responseCode == 404) "file non trovato (HTTP 404)" else "HTTP ${c.responseCode}")
             val total = c.contentLength.toLong()

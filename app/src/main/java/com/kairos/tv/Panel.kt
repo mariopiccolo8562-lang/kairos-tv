@@ -276,16 +276,20 @@ object Panel {
     }
 
     /**
-     * Versione più recente di Kairos TV: tv.json dall'indirizzo dei download (BuildConfig.DL_BASE, oggi il pannello
-     * panel-kairos.com) e, solo se il pannello non risponde, risponde con un errore o con un file non valido, come riserva
-     * kairos-tv.json dell'ultima release del repository kairos-tv (pubblicato dal workflow a ogni tag vX.Y.Z); vedi [UpdFeed].
-     * L'APK si scarica dal campo «url» del file trovato. null = nessun file valido (rete giù): si riprova più tardi.
+     * Versione più recente di Kairos TV: tv.json dall'indirizzo dei download (BuildConfig.DL_BASE, store-k.download), poi dal
+     * pannello panel-kairos.com e, solo se nessuno dei due risponde bene, kairos-tv.json dell'ultima release del repository
+     * kairos-tv (pubblicato dal workflow a ogni tag vX.Y.Z); vedi [UpdFeed]. L'APK si scarica dal campo «url» del file
+     * trovato. null = nessun file valido (rete giù): si riprova più tardi.
      */
     fun update(): JSONObject? = UpdFeed.first(UpdFeed.urls(BuildConfig.DL_BASE, "tv", BuildConfig.UPDATE_URL_FALLBACK)) { updFeed(it) }
 
-    /** un file degli aggiornamenti: {"apk": {versionCode, version, url}} se è valido, altrimenti null */
+    /**
+     * un file degli aggiornamenti: {"apk": {versionCode, version, url}} solo se la risposta è 200 e un JSON con versione e
+     * link in https, altrimenti null (HTML di un dominio parcheggiato, JSON rotto, campi mancanti). Connessione al massimo
+     * 5 s: il dominio dei download non ancora attivo fa passare in fretta al pannello.
+     */
     private fun updFeed(src: String): JSONObject? {
-        val r = Http.text(src, connectMs = 12_000, readMs = 15_000)
+        val r = Http.text(src, connectMs = 5_000, readMs = 10_000)
         if (r.code != 200) return null
         val j = JSONObject(r.text)
         val v = j.optString("version").trim().removePrefix("v")
