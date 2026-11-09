@@ -20,10 +20,10 @@ object AdultFilter {
     /** eccezione del contratto: «Adult Swim» (cartoni animati) non è una categoria per adulti */
     private val SWIM = Regex("""adult\s*swim""")
 
-    private val MARKS = Regex("""[̀-ͯ]+""")
+    private val MARKS = Regex("""[\u0300-\u036F]+""")
 
     /** gli spazi di \s in JavaScript e Dart, compresi quelli che NFKD lascia com'erano */
-    private val SPACES = Regex("""[\t\n\x0B\f\r    -     　﻿]+""")
+    private val SPACES = Regex("""[\t\n\x0B\f\r\x20\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000\uFEFF]+""")
 
     /** NFKD («ＸＸＸ» a larghezza piena diventa «XXX»), senza segni diacritici, minuscolo, spazi multipli ridotti a uno e tolti ai bordi */
     fun norm(s: String?): String {

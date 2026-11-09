@@ -45,7 +45,7 @@ class AdultFilterTest {
     fun normalizzazioneDelContratto() {
         assertEquals("xxx", AdultFilter.norm("ＸＸＸ")) // NFKD: lettere a larghezza piena
         assertEquals("erotique", AdultFilter.norm("  Érotique "))
-        assertEquals("film +18", AdultFilter.norm("Film    +18"))
+        assertEquals("film +18", AdultFilter.norm("Film \u00A0\u2003 +18"))
         assertEquals("", AdultFilter.norm(null))
         assertEquals("", AdultFilter.norm("   "))
         assertFalse(AdultFilter.cat(null))
@@ -57,8 +57,8 @@ class AdultFilterTest {
         // \b e \s come in JavaScript e Dart (le altre app): lettere e segni fuori dall'ASCII non attaccano le parole
         assertTrue(AdultFilter.cat("XXXфильмы"))
         assertTrue(AdultFilter.title("ФИЛЬМ XXX"))
-        assertTrue(AdultFilter.cat("XXX҃"))
-        assertTrue(AdultFilter.cat("18 +"))
+        assertTrue(AdultFilter.cat("XXX\u0483"))
+        assertTrue(AdultFilter.cat("18\u2028+"))
         assertFalse(AdultFilter.cat("Essex ★"))
         assertFalse(AdultFilter.title("Sexy Beast ★"))
         // l'eccezione toglie solo «adult swim»
