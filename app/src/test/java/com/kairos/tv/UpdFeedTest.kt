@@ -9,99 +9,91 @@ import org.junit.Assert.fail
 import org.junit.Test
 import java.io.IOException
 
-/** Aggiornamenti: store-k.download, poi il pannello, poi GitHub; si passa alla base dopo solo se quella prima fallisce */
+/** Aggiornamenti: store-k.download, poi le riserve (compilata e annunciate dal file); niente pannello, niente GitHub */
 class UpdFeedTest {
     private val dl = "https://store-k.download"
-    private val gh = "https://github.com/mariopiccolo8562-lang/kairos-tv/releases/latest/download/kairos-tv.json"
-    private val ghApk = "https://github.com/mariopiccolo8562-lang/kairos-tv/releases/latest/download/kairos-tv.apk"
+    private val r2 = "https://riserva-k.com"
     private val dlFeed = "https://store-k.download/get/tv.json"
-    private val panel = "https://panel-kairos.com/get/tv.json"
+    private val r2Feed = "https://riserva-k.com/get/tv.json"
     private val dlApk = "https://store-k.download/get/tv.apk"
-    private val panelApk = "https://panel-kairos.com/get/tv.apk"
+    private val r2Apk = "https://riserva-k.com/get/tv.apk"
 
     @Test
-    fun ordineDominioDeiDownloadPannelloGitHub() {
-        assertEquals(listOf(dlFeed, panel, gh), UpdFeed.urls(dl, "tv", gh))
-        assertEquals(listOf(dlFeed, panel, gh), UpdFeed.urls("$dl/", "tv", gh))
+    fun soloIlDominioDeiDownloadSenzaPannelloNeGitHub() {
+        assertEquals(listOf(dlFeed), UpdFeed.urls(dl, "tv"))
+        assertEquals(listOf(dlFeed), UpdFeed.urls("$dl/", "tv", listOf("")))
+        assertFalse(UpdFeed.urls(dl, "tv").any { it.contains("panel-kairos") || it.contains("github") })
     }
 
     @Test
-    fun conIlPannelloComeIndirizzoDeiDownloadIlDoppioneSiSalta() {
-        assertEquals(listOf(panel, gh), UpdFeed.urls("https://panel-kairos.com", "tv", gh))
+    fun poiLeRiserveInOrdineSenzaDoppioni() {
+        assertEquals(listOf(dlFeed, r2Feed), UpdFeed.urls(dl, "tv", listOf(r2, "$dl/", r2)))
+        assertEquals(listOf(r2Feed), UpdFeed.urls("", "tv", listOf(r2)))
     }
 
     @Test
     fun indirizziNonValidiSiSaltano() {
-        assertEquals(listOf(panel), UpdFeed.urls("", "tv", ""))
-        assertEquals(listOf(panel, gh), UpdFeed.urls("http://store-k.download", "tv", gh))
+        assertEquals(listOf<String>(), UpdFeed.urls("", "tv"))
+        assertEquals(listOf(r2Feed), UpdFeed.urls("http://store-k.download", "tv", listOf("ftp://x.com", "https://", "https://riserva-k.com/percorso", r2)))
+    }
+
+    @Test
+    fun riserveAnnunciateDalFile() {
+        assertEquals(listOf(dl, r2), UpdFeed.mirrors(listOf("$dl/", " $r2 ", r2, "http://chiaro.com", "https://x", "https://a.it", "https://b.it")).take(2))
+        assertEquals(3, UpdFeed.mirrors(listOf("https://a.it", "https://b.it", "https://c.it", "https://d.it")).size)
+        assertEquals(listOf<String>(), UpdFeed.mirrors(listOf("javascript:alert(1)", "https://evil.com/../x")))
+    }
+
+    @Test
+    fun alPiuQuattroBasi() {
+        assertEquals(4, UpdFeed.bases(dl, listOf("https://a.it", "https://b.it", "https://c.it", "https://d.it")).size)
     }
 
     @Test
     fun conLaPrimaBaseCheRispondeLeAltreNonSiChiedono() {
         val asked = ArrayList<String>()
-        val r = UpdFeed.first(UpdFeed.urls(dl, "tv", gh)) { asked.add(it); "file" }
+        val r = UpdFeed.first(UpdFeed.urls(dl, "tv", listOf(r2))) { asked.add(it); "file" }
         assertEquals("file", r)
         assertEquals(listOf(dlFeed), asked)
     }
 
     @Test
-    fun dominioNonAttivoOParcheggiatoSiPassaAlPannello() {
-        // null = 200 con HTML (dominio parcheggiato), JSON rotto o senza versione/link, errore HTTP;
-        // eccezione = nessuna risposta (nome sconosciuto, connessione scaduta dopo 5 s)
+    fun dominioBloccatoOParcheggiatoSiPassaAllaRiserva() {
         val fails = listOf<(String) -> String?>({ null }, { throw IOException("store-k.download: nome sconosciuto") })
-        for (fail in fails) {
+        for (failing in fails) {
             val asked = ArrayList<String>()
-            val r = UpdFeed.first(UpdFeed.urls(dl, "tv", gh)) { u -> asked.add(u); if (u == panel) "pannello" else fail(u) }
-            assertEquals("pannello", r)
-            assertEquals(listOf(dlFeed, panel), asked) // GitHub non si chiede
+            val r = UpdFeed.first(UpdFeed.urls(dl, "tv", listOf(r2))) { u -> asked.add(u); if (u == r2Feed) "riserva" else failing(u) }
+            assertEquals("riserva", r)
+            assertEquals(listOf(dlFeed, r2Feed), asked)
         }
     }
 
     @Test
-    fun pannelloGiuSiUsaGitHub() {
-        val asked = ArrayList<String>()
-        val r = UpdFeed.first(UpdFeed.urls(dl, "tv", gh)) { u -> asked.add(u); if (u == gh) "github" else null }
-        assertEquals("github", r)
-        assertEquals(listOf(dlFeed, panel, gh), asked)
-    }
-
-    @Test
     fun tuttiGiuNessunaVersione() {
-        // nessuno risponde (o repository privato): come una rete giù, si riprova più tardi
-        assertNull(UpdFeed.first(UpdFeed.urls(dl, "tv", gh)) { null })
+        assertNull(UpdFeed.first(UpdFeed.urls(dl, "tv", listOf(r2))) { null })
     }
 
     @Test
-    fun apkDalLinkDelFilePoiDalleBasiSuccessivePoiGitHub() {
-        // file dal dominio dei download: poi il pannello, poi GitHub
-        assertEquals(listOf(dlApk, panelApk, ghApk), UpdFeed.apkUrls(dlApk, dl, "tv", ghApk))
-        // file dal pannello (dominio dei download giù): il dominio dei download non si riprova
-        assertEquals(listOf(panelApk, ghApk), UpdFeed.apkUrls(panelApk, dl, "tv", ghApk))
-        // file di riserva di GitHub: il suo link, poi l'ultima release
-        val rel = "https://github.com/mariopiccolo8562-lang/kairos-tv/releases/download/v2.4.3/kairos-tv.apk"
-        assertEquals(listOf(rel, ghApk), UpdFeed.apkUrls(rel, dl, "tv", ghApk))
-        assertEquals(listOf(ghApk), UpdFeed.apkUrls(ghApk, dl, "tv", ghApk))
-        // link del file con un nome diverso sulla stessa base: lo stesso APK con il nome solito sulle basi dopo
-        assertEquals(listOf("$dl/get/tv.apk?v=20403", panelApk, ghApk), UpdFeed.apkUrls("$dl/get/tv.apk?v=20403", dl, "tv", ghApk))
-    }
-
-    @Test
-    fun downloadRiuscitoAlPrimoColpo() {
-        val tried = ArrayList<String>()
-        val r = UpdFeed.firstOk(listOf(dlApk, panelApk, ghApk)) { tried.add(it); "ok:$it" }
-        assertEquals("ok:$dlApk", r)
-        assertEquals(listOf(dlApk), tried)
+    fun apkDalLinkDelFilePoiDalleAltreBasi() {
+        assertEquals(listOf(dlApk, r2Apk), UpdFeed.apkUrls(dlApk, dl, "tv", listOf(r2)))
+        // file dalla riserva (dominio dei download giù): il dominio dei download non si riprova
+        assertEquals(listOf(r2Apk), UpdFeed.apkUrls(r2Apk, dl, "tv", listOf(r2)))
+        // link fuori dalle basi (es. un vecchio link di GitHub): il suo link, poi tutte le basi
+        val rel = "https://github.com/x/y/releases/download/v2.4.3/tv.apk"
+        assertEquals(listOf(rel, dlApk, r2Apk), UpdFeed.apkUrls(rel, dl, "tv", listOf(r2)))
+        assertEquals(listOf("$dl/get/tv.apk?v=20403", r2Apk), UpdFeed.apkUrls("$dl/get/tv.apk?v=20403", dl, "tv", listOf(r2)))
+        assertEquals(listOf(dlApk), UpdFeed.apkUrls(dlApk, dl, "tv"))
     }
 
     @Test
     fun downloadFallitoSiProvaLaBaseDopoELErroreRestaQuelloDelPrimo() {
         val tried = ArrayList<String>()
-        val r = UpdFeed.firstOk(listOf(dlApk, panelApk, ghApk)) { u -> tried.add(u); if (u == ghApk) "ok" else throw IOException("HTTP 502 da $u") }
+        val r = UpdFeed.firstOk(listOf(dlApk, r2Apk)) { u -> tried.add(u); if (u == r2Apk) "ok" else throw IOException("HTTP 502 da $u") }
         assertEquals("ok", r)
-        assertEquals(listOf(dlApk, panelApk, ghApk), tried)
+        assertEquals(listOf(dlApk, r2Apk), tried)
         val first = IOException("HTTP 502")
         try {
-            UpdFeed.firstOk<String>(listOf(dlApk, panelApk)) { u -> throw if (u == dlApk) first else IOException("file non trovato (HTTP 404)") }
+            UpdFeed.firstOk<String>(listOf(dlApk, r2Apk)) { u -> throw if (u == dlApk) first else IOException("file non trovato (HTTP 404)") }
             fail("doveva fallire")
         } catch (e: IOException) {
             assertSame(first, e)
@@ -114,7 +106,7 @@ class UpdFeedTest {
     fun visioneIniziataFermaTuttoSenzaProvareLeAltreBasi() {
         val tried = ArrayList<String>()
         try {
-            UpdFeed.firstOk<String>(listOf(dlApk, panelApk, ghApk), { it is Visione }) { u -> tried.add(u); throw Visione() }
+            UpdFeed.firstOk<String>(listOf(dlApk, r2Apk), { it is Visione }) { u -> tried.add(u); throw Visione() }
             fail("doveva fermarsi")
         } catch (_: Visione) {
         }
@@ -131,9 +123,9 @@ class UpdFeedTest {
 
     @Test
     fun fileValido() {
-        assertTrue(UpdFeed.valid(20402, panelApk))
-        assertFalse(UpdFeed.valid(0, panelApk))
-        assertFalse(UpdFeed.valid(20402, "http://panel-kairos.com/get/tv.apk"))
+        assertTrue(UpdFeed.valid(20402, dlApk))
+        assertFalse(UpdFeed.valid(0, dlApk))
+        assertFalse(UpdFeed.valid(20402, "http://store-k.download/get/tv.apk"))
         assertFalse(UpdFeed.valid(20402, ""))
     }
 }

@@ -7,12 +7,12 @@ fun env(name: String): String? = System.getenv(name)?.takeIf { it.isNotBlank() }
 val keystore = env("KS_PATH")?.let { file(it) }?.takeIf { it.exists() }
 // pannello Kairos (lo stesso di KAIROS TV); la variabile KAIROS_SERVER_URL del repository, se c'è, lo sostituisce
 val serverUrl = (env("KAIROS_SERVER_URL") ?: "https://kairos-panel.mariopiccolo8562.workers.dev").trimEnd('/').replace("\"", "")
-// download e aggiornamenti: un solo indirizzo, il dominio dedicato ai download; l'app chiede <DL_BASE>/get/tv.json,
-// poi panel-kairos.com, poi GitHub (vedi UpdFeed.kt); la variabile KAIROS_DL_BASE del repository, se c'è, lo sostituisce
+// download e aggiornamenti solo dal dominio dei download, niente pannello né GitHub (vedi UpdFeed.kt): l'app chiede
+// <DL_BASE>/get/tv.json; la variabile KAIROS_DL_BASE del repository, se c'è, lo sostituisce
 val dlBase = (env("KAIROS_DL_BASE") ?: "https://store-k.download").trimEnd('/').replace("\"", "")
-// riserva, solo se dominio dei download e pannello non rispondono: kairos-tv.json e kairos-tv.apk dell'ultima release di
-// questo repository (Kairos TV è separata da Kairos Pro); con il repository privato fallisce senza danni
-val ghLatest = "https://github.com/" + (env("GITHUB_REPOSITORY") ?: "mariopiccolo8562-lang/kairos-tv") + "/releases/latest/download/"
+// secondo dominio dei download, di riserva (variabile KAIROS_DL_BASE2, vuota finché non c'è): oltre ai domini che il
+// pannello annuncia nei file degli aggiornamenti («mirrors», che l'app ricorda)
+val dlBase2 = (env("KAIROS_DL_BASE2") ?: "").trimEnd('/').replace("\"", "")
 
 android {
     namespace = "com.kairos.tv"
@@ -29,8 +29,7 @@ android {
         resValue("string", "app_name", env("TV_APP_NAME") ?: "Kairos TV")
         buildConfigField("String", "SERVER_URL", "\"$serverUrl\"")
         buildConfigField("String", "DL_BASE", "\"$dlBase\"")
-        buildConfigField("String", "UPDATE_URL_FALLBACK", "\"${ghLatest}kairos-tv.json\"")
-        buildConfigField("String", "APK_URL_FALLBACK", "\"${ghLatest}kairos-tv.apk\"")
+        buildConfigField("String", "DL_BASE2", "\"$dlBase2\"")
         // Fire TV / Android TV / telefoni sono ARM: niente x86, APK più piccolo
         ndk { abiFilters += listOf("armeabi-v7a", "arm64-v8a") }
         // l'app parla solo italiano: delle librerie (lettore, ecc.) restano i testi in italiano e quelli di base,

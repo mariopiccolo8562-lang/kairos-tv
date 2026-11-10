@@ -3,49 +3,46 @@ package com.kairos.tv
 /**
  * Da dove arrivano il file degli aggiornamenti e l'APK (logica pura, senza Android: la provano i test JVM).
  *
- * Basi, in ordine:
- * 1. l'indirizzo dei download `BuildConfig.DL_BASE` (https://store-k.download): una sola costante in app/build.gradle.kts
- *    (o la variabile KAIROS_DL_BASE del repository). Finché il dominio non è attivo fallisce in fretta (connessione 5 s);
- * 2. il pannello [PANEL], stessi percorsi `/get/<id>.json` e `/get/<id>.apk` (si salta se è uguale alla prima);
- * 3. la riserva di oggi, l'ultima release di GitHub: quando il repository diventerà privato fallirà senza danni.
+ * Basi, in ordine (dal 10 novembre 2026 niente più pannello né GitHub negli aggiornamenti):
+ * 1. l'indirizzo dei download `BuildConfig.DL_BASE` (https://store-k.download, o la variabile KAIROS_DL_BASE del
+ *    repository). Se il dominio non risponde si passa in fretta alla base dopo (connessione 5 s);
+ * 2. le riserve, con gli stessi percorsi `/get/<id>.json` e `/get/<id>.apk`: `BuildConfig.DL_BASE2` (variabile
+ *    KAIROS_DL_BASE2, vuota finché non c'è un secondo dominio) e i domini che il file degli aggiornamenti annuncia in
+ *    «mirrors» (l'app li ricorda in [Store.dlMirrors]: un dominio di riserva comprato dopo arriva anche alle app già
+ *    installate, senza una versione nuova).
  *
  * Il file vale solo se la risposta è 200 e un JSON con versione e link dell'APK in https; una pagina HTML (anche quella
  * di un dominio parcheggiato), un JSON rotto o senza quei campi contano come errore e si passa alla base successiva.
- * L'APK si scarica dal link del file che ha risposto e, se non riesce, dalle basi successive ([apkUrls]).
+ * L'APK si scarica dal link del file che ha risposto e, se non riesce, dalle altre basi ([apkUrls]).
  */
 object UpdFeed {
-    /** pannello Kairos: seconda base, con gli stessi percorsi dell'indirizzo dei download */
-    const val PANEL = "https://panel-kairos.com"
-
     private val SEMVER = Regex("^(\\d{1,3})\\.(\\d{1,2})\\.(\\d{1,2})$")
+    private val BASE = Regex("^https://[a-z0-9.-]+\\.[a-z]{2,}(:\\d{1,5})?$", RegexOption.IGNORE_CASE)
 
-    /** basi https dei download, in ordine e senza doppioni: [dlBase], poi [PANEL] */
-    fun bases(dlBase: String): List<String> =
-        listOf(dlBase, PANEL).map { it.trim().trimEnd('/') }.filter { it.startsWith("https://") }.distinct()
+    /** basi https dei download, in ordine e senza doppioni: [dlBase], poi le riserve [extra]; al massimo 4 */
+    fun bases(dlBase: String, extra: List<String> = emptyList()): List<String> =
+        (listOf(dlBase) + extra).map { it.trim().trimEnd('/') }.filter { BASE.matches(it) }.distinct().take(4)
 
-    /** file degli aggiornamenti da provare per l'app [id] (tv, premium, lite, xc): /get/<id>.json su ogni base, poi [fallback] */
-    fun urls(dlBase: String, id: String, fallback: String): List<String> {
-        val out = bases(dlBase).map { "$it/get/$id.json" }.toMutableList()
-        val f = fallback.trim()
-        if (f.startsWith("https://")) out.add(f)
-        return out.distinct()
-    }
+    /** file degli aggiornamenti da provare per l'app [id] (tv): /get/<id>.json su ogni base */
+    fun urls(dlBase: String, id: String, extra: List<String> = emptyList()): List<String> =
+        bases(dlBase, extra).map { "$it/get/$id.json" }
 
     /**
      * APK da provare, in ordine: [url], il link del file che ha risposto; poi lo stesso APK (/get/<id>.apk) sulle basi
-     * successive a quella del link; alla fine [ghApk], l'APK dell'ultima release di GitHub. Un link fuori dalle basi
-     * (quello del file di riserva di GitHub) passa direttamente a [ghApk].
+     * successive a quella del link. Un link fuori dalle basi passa a tutte le basi.
      */
-    fun apkUrls(url: String, dlBase: String, id: String, ghApk: String): List<String> {
-        val out = ArrayList<String>(4)
+    fun apkUrls(url: String, dlBase: String, id: String, extra: List<String> = emptyList()): List<String> {
+        val out = ArrayList<String>(5)
         if (url.startsWith("https://")) out.add(url)
-        val b = bases(dlBase)
+        val b = bases(dlBase, extra)
         val at = b.indexOfFirst { url.startsWith("$it/") }
-        if (at >= 0) for (next in b.subList(at + 1, b.size)) out.add("$next/get/$id.apk")
-        val g = ghApk.trim()
-        if (g.startsWith("https://")) out.add(g)
+        for (next in if (at >= 0) b.subList(at + 1, b.size) else b) out.add("$next/get/$id.apk")
         return out.distinct()
     }
+
+    /** domini di riserva annunciati dal file degli aggiornamenti («mirrors»): solo https validi, senza doppioni, al massimo 3 */
+    fun mirrors(list: List<String>): List<String> =
+        list.map { it.trim().trimEnd('/') }.filter { BASE.matches(it) }.distinct().take(3)
 
     /**
      * Primo file valido nell'ordine di [urls]. [load] legge un indirizzo e dà null se risponde con un errore o con un file

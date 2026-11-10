@@ -276,12 +276,14 @@ object Panel {
     }
 
     /**
-     * Versione più recente di Kairos TV: tv.json dall'indirizzo dei download (BuildConfig.DL_BASE, store-k.download), poi dal
-     * pannello panel-kairos.com e, solo se nessuno dei due risponde bene, kairos-tv.json dell'ultima release del repository
-     * kairos-tv (pubblicato dal workflow a ogni tag vX.Y.Z); vedi [UpdFeed]. L'APK si scarica dal campo «url» del file
+     * Versione più recente di Kairos TV: tv.json dall'indirizzo dei download (BuildConfig.DL_BASE, store-k.download)
+     * e poi dalle riserve ([dlExtra]); niente pannello né GitHub (vedi [UpdFeed]). L'APK si scarica dal campo «url» del file
      * trovato. null = nessun file valido (rete giù): si riprova più tardi.
      */
-    fun update(): JSONObject? = UpdFeed.first(UpdFeed.urls(BuildConfig.DL_BASE, "tv", BuildConfig.UPDATE_URL_FALLBACK)) { updFeed(it) }
+    fun update(): JSONObject? = UpdFeed.first(UpdFeed.urls(BuildConfig.DL_BASE, "tv", dlExtra())) { updFeed(it) }
+
+    /** basi di riserva dei download: quella compilata (KAIROS_DL_BASE2) e i domini annunciati dal pannello («mirrors») */
+    fun dlExtra(): List<String> = listOf(BuildConfig.DL_BASE2) + Store.dlMirrors()
 
     /**
      * un file degli aggiornamenti: {"apk": {versionCode, version, url}} solo se la risposta è 200 e un JSON con versione e
@@ -295,7 +297,10 @@ object Panel {
         val v = j.optString("version").trim().removePrefix("v")
         val code = UpdFeed.code(v, j.optInt("versionCode", 0))
         val url = j.optString("url")
-        return if (UpdFeed.valid(code, url)) JSONObject().put("apk", JSONObject().put("versionCode", code).put("version", v).put("url", url)) else null
+        if (!UpdFeed.valid(code, url)) return null
+        // domini dei download annunciati dal pannello: si ricordano per quando store-k.download non risponde
+        j.optJSONArray("mirrors")?.let { a -> Store.setDlMirrors(UpdFeed.mirrors((0 until a.length()).map { i -> a.optString(i) })) }
+        return JSONObject().put("apk", JSONObject().put("versionCode", code).put("version", v).put("url", url))
     }
 
     /** testo «Privacy e condizioni»: quello del pannello, altrimenti la pagina pubblica /privacy */

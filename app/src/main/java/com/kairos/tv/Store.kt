@@ -226,4 +226,11 @@ object Store {
         if (v <= 0) pos.edit().remove(id).remove("$id#d").apply()
         else pos.edit().putLong(id, v).putLong("$id#d", dur).apply()
     }
+
+    /** domini di riserva per gli aggiornamenti annunciati dal pannello («mirrors» del file, vedi UpdFeed) */
+    fun dlMirrors(): List<String> = try { (p.getString("dl_mirrors", "") ?: "").split('\n').filter { it.isNotBlank() } } catch (_: Exception) { emptyList() }
+
+    fun setDlMirrors(v: List<String>) {
+        try { if (v.joinToString("\n") != (p.getString("dl_mirrors", "") ?: "")) p.edit().putString("dl_mirrors", v.joinToString("\n")).apply() } catch (_: Exception) {}
+    }
 }
