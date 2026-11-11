@@ -65,7 +65,9 @@ Il permesso «resInd» bloccato lo nasconde sempre. Non cambiano i nomi dei cana
 
 ## Pubblicare una versione
 
-*Releases → Draft a new release* → tag `v2.0.0` (poi `v2.0.1`, `v2.1.0`…) → *Publish*. Dopo pochi minuti alla release sono allegati `kairos-tv.apk` e `kairos-tv.json`.
+**Da sola:** cambia il numero in `versione.txt` su `main` (per esempio da `2.4.5` a `2.4.6`). La compilazione di quella modifica crea il tag `v2.4.6` e pubblica la release, senza passare da GitHub. La regola sta in `.github/scripts/versione.sh` (provata a ogni compilazione da `versione_test.sh`): pubblica solo da `main` e solo se la versione è nuova e più alta dell'ultima pubblicata; con un numero non valido, più basso o già pubblicato esce solo l'APK di prova. Le altre modifiche a `main` non pubblicano nulla.
+
+**A mano, come prima:** *Releases → Draft a new release* → tag `v2.0.0` (poi `v2.0.1`, `v2.1.0`…) → *Publish*. Dopo pochi minuti alla release sono allegati `kairos-tv.apk` e `kairos-tv.json`.
 
 - Link fisso per **Downloader** e per lo store:
   `https://github.com/mariopiccolo8562-lang/kairos-tv/releases/latest/download/kairos-tv.apk`

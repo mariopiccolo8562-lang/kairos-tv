@@ -1,7 +1,9 @@
 name: App Kairos TV (APK)
 
 # - ogni modifica compila un APK di prova (scheda Actions → Artifacts)
-# - un tag vX.Y.Z (Releases → Draft a new release) pubblica la versione:
+# - per pubblicare una versione basta cambiare il numero in versione.txt su main: tag e release li crea questa compilazione
+#   (regola in .github/scripts/versione.sh: solo da main, solo se la versione è nuova e più alta dell'ultima)
+# - vale ancora anche il tag vX.Y.Z creato a mano (Releases → Draft a new release). La release pubblica:
 #   https://github.com/<utente>/kairos-tv/releases/latest/download/kairos-tv.apk  (link fisso per Downloader)
 #   https://github.com/<utente>/kairos-tv/releases/latest/download/kairos-tv.json (letto dal pannello: aggiornamento automatico)
 on:
@@ -13,11 +15,26 @@ on:
 permissions:
   contents: write
 
+# su main una compilazione alla volta: due modifiche vicine non pubblicano due volte la stessa versione
+concurrency:
+  group: ${{ github.ref == 'refs/heads/main' && 'rilascio-main' || github.run_id }}
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # prima di tutto: è una compilazione di prova o una release (da tag, o da versione.txt su main)?
+      - name: Versione
+        run: |
+          bash .github/scripts/versione_test.sh .github/scripts/versione.sh
+          TAGS_OK=0; TAGS=""
+          if T="$(git ls-remote --tags origin 2>/dev/null)"; then
+            TAGS="$(printf '%s\n' "$T" | sed 's#.*refs/tags/##; s#\^{}$##')"; TAGS_OK=1
+          fi
+          TAGS="$TAGS" TAGS_OK="$TAGS_OK" bash .github/scripts/versione.sh
 
       - uses: actions/setup-java@v4
         with:
@@ -35,24 +52,12 @@ jobs:
           if [ -n "$KS_B64" ]; then
             echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
             echo "KS_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
-          elif [[ "$GITHUB_REF" =~ ^refs/tags/[vV]?[0-9] ]]; then
+          elif [ "$IS_RELEASE" = "1" ] || [[ "$GITHUB_REF" =~ ^refs/tags/[vV]?[0-9] ]]; then
             echo "::error::Mancano i segreti della chiave di firma (vedi README): senza, gli aggiornamenti non si installerebbero sopra la versione precedente"
             exit 1
           else
             echo "::warning::Nessuna chiave di firma: APK di prova firmato con una chiave temporanea"
           fi
-
-      - name: Versione
-        run: |
-          if [[ "$GITHUB_REF" =~ ^refs/tags/[vV]?([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
-            V="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}"
-            CODE=$(( BASH_REMATCH[1] * 10000 + BASH_REMATCH[2] * 100 + BASH_REMATCH[3] ))   # es. 1.2.3 → 10203
-            echo "IS_TAG=1" >> "$GITHUB_ENV"
-          else
-            V="0.0.${GITHUB_RUN_NUMBER}"; CODE=${GITHUB_RUN_NUMBER}                          # build di prova
-          fi
-          echo "VERSION_NAME=$V" >> "$GITHUB_ENV"
-          echo "VERSION_CODE=$CODE" >> "$GITHUB_ENV"
 
       - name: Compila APK
         env:
@@ -74,17 +79,19 @@ jobs:
           path: kairos-tv.apk
 
       - name: File per l'aggiornamento automatico
-        if: startsWith(github.ref, 'refs/tags/') && env.IS_TAG == '1'
+        if: env.IS_RELEASE == '1'
         run: |
-          URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/kairos-tv.apk"
+          URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${REL_TAG}/kairos-tv.apk"
           jq -n --arg v "$VERSION_NAME" --argjson c "$VERSION_CODE" --arg u "$URL" --arg d "$(date -u +%FT%TZ)" \
             '{version:$v, versionCode:$c, url:$u, date:$d}' > kairos-tv.json
           cat kairos-tv.json
 
       - name: Pubblica la release
-        if: startsWith(github.ref, 'refs/tags/') && env.IS_TAG == '1'
+        if: env.IS_RELEASE == '1'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.REL_TAG }}          # da versione.txt il tag non c'è ancora: lo crea la release, su questo commit
+          target_commitish: ${{ github.sha }}
           files: |
             kairos-tv.apk
             kairos-tv.json
