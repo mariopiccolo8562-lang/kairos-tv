@@ -119,6 +119,14 @@ object Store {
     fun saveUpd(code: Int, ver: String, url: String) { p.edit().putInt("updCode", code).putString("updVer", ver).putString("updUrl", url).apply() }
     fun saveUpdFile(path: String, len: Long) { p.edit().putString("updFile", path).putLong("updLen", len).apply() }
     fun clearUpd() { p.edit().remove("updCode").remove("updVer").remove("updUrl").remove("updFile").remove("updLen").apply() }
+    /** aggiornamento senza conferma già tentato per questa versione (uno per versione: se non riesce resta la proposta di sempre) */
+    var quietTried: Int
+        get() = p.getInt("quietTried", 0)
+        set(v) = p.edit().putInt("quietTried", v).apply()
+    /** ultimo aggiornamento senza conferma non riuscito: versione ed esito di Android (2 = bloccato, es. «Blocco automatico») */
+    val quietFailCode: Int get() = p.getInt("quietFailCode", 0)
+    val quietFailSt: Int get() = p.getInt("quietFailSt", 0)
+    fun quietFailed(code: Int, st: Int) { p.edit().putInt("quietFailCode", code).putInt("quietFailSt", st).apply() }
     /** ultima richiesta «Invia aggiornamento» del pannello già gestita */
     var updSeen: Long
         get() = p.getLong("updSeen", 0)
