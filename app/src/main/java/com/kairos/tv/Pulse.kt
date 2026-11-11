@@ -65,6 +65,7 @@ object Pulse {
             want = false
             watching = null
             away()
+            Updater.onBackground()
         }
     }
 

@@ -60,14 +60,14 @@ class SettingsActivity : BaseActivity() {
         findViewById<TextView>(R.id.accName).text = name
         val lines = ArrayList<String>()
         lines.add(if (s.expires.isEmpty()) "Abbonamento attivo" else "Scadenza: " + Ui.date(s.expires))
-        if (a != null) lines.add("Dispositivi: ${a.conns.size} di ${a.maxConn}")
+        if (a != null) lines.add(if (a.maxConn >= 999) "Dispositivi: ${a.conns.size} (illimitati)" else "Dispositivi: ${a.conns.size} di ${a.maxConn}")
         if (a != null && !a.primary && a.owner.isNotEmpty()) lines.add("Collegato a: " + a.owner)
         lines.add("Codice TV: " + Store.code)
         lines.add(getString(R.string.app_name) + " " + BuildConfig.VERSION_NAME + (if (App.lite) " · modalità leggera" else ""))
         findViewById<TextView>(R.id.accInfo).text = lines.joinToString("\n")
 
         if (a != null && a.primary && s.perm("link")) {
-            row(R.drawable.ic_link, "Collega un'altra TV", "Genera un codice a 6 cifre da scrivere sulla nuova TV", "${a.conns.size}/${a.maxConn}") { linkCode() }
+            row(R.drawable.ic_link, "Collega un'altra TV", "Genera un codice a 6 cifre da scrivere sulla nuova TV", if (a.maxConn >= 999) "${a.conns.size}/∞" else "${a.conns.size}/${a.maxConn}") { linkCode() }
         }
         if (K.profilesOn()) {
             row(R.drawable.ic_user, "Profili", "Chi guarda, profili bambini", pr?.name ?: "") {

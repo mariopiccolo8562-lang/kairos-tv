@@ -30,6 +30,8 @@ import java.util.concurrent.atomic.AtomicBoolean
  * si scarica e si verifica in silenzio (solo su Wi-Fi o cavo, mai durante la visione); quando è pronta l'app
  * propone «Installa ora» appena si è in un menu e al cliente resta solo la conferma di Android.
  * Dal pannello: «Invia aggiornamento» (upd nel battito) o il comando «update» fanno partire subito il controllo.
+ * Android 12 e successivi (11 novembre 2026): niente proposta, la versione pronta si installa da sola senza conferma quando
+ * il cliente esce dall'app (vedi [Quiet]); se non riesce, si torna alla proposta. L'aggiornamento obbligatorio resta.
  */
 object Updater {
     class Upd(val code: Int, val ver: String, val url: String)
@@ -94,10 +96,34 @@ object Updater {
 
     /** l'app torna in primo piano: nuovo controllo e, se c'è già una versione nuova, la si propone di nuovo */
     fun onForeground() {
+        Quiet.cancel()
         askedCode = 0
         answered = false
         App.main.removeCallbacks(fgCheck)
         App.main.postDelayed(fgCheck, 5_000)
+    }
+
+    /** il cliente è uscito dall'app: tra qualche secondo, se non torna, la versione pronta si installa da sola (Android 12+) */
+    fun onBackground() = Quiet.schedule { quietNow() }
+
+    /** la versione [u] la installa l'aggiornamento senza conferma: niente proposta al cliente (resta quella obbligatoria);
+     *  se dopo 3 giorni non si è ancora installata (app mai chiusa) torna la proposta di sempre */
+    private fun quietWay(u: Upd): Boolean = System.currentTimeMillis() - firstSeen(u) < 3 * 86_400_000L &&
+        Quiet.handles(Build.VERSION.SDK_INT, Remote.canInstall(), Store.quietTried, u.code, ready?.exists() == true, Store.bgUpdate && !metered() && prefetchFailed < 3)
+
+    /** cliente fuori dall'app da qualche secondo: installazione senza conferma della versione pronta (un tentativo per versione) */
+    private fun quietNow() {
+        val u = pending ?: return
+        val f = ready ?: return
+        if (!f.exists() || Store.quietTried == u.code || busy.get() || watching()) return
+        if (!Quiet.vpnOk(KxVpn.active(), KxVpn.appOnly)) return
+        work {
+            if (App.started != 0 || Store.quietTried == u.code || !f.exists()) return@work
+            Store.quietTried = u.code
+            val started = Quiet.install(App.I, f, u.code) { App.started == 0 }
+            // il cliente è tornato mentre si preparava: nessuna installazione, si riprova alla prossima uscita
+            if (!started && App.started != 0) Store.quietTried = 0
+        }
     }
 
     /** chiamato anche dal battito ogni 20 s: il controllo vero parte solo ogni [gap] */
@@ -116,7 +142,7 @@ object Updater {
         work {
             try {
                 val u = check(null, force = true)
-                done?.invoke(if (u == null) "già aggiornata (" + BuildConfig.VERSION_NAME + ")" else when { App.top is PlayerActivity -> "versione " + u.ver + ": proposta a fine visione"; ready != null -> "versione " + u.ver + " pronta: proposta al cliente"; else -> "versione " + u.ver + " in scaricamento" })
+                done?.invoke(if (u == null) "già aggiornata (" + BuildConfig.VERSION_NAME + ")" else if (quietWay(u)) "versione " + u.ver + (if (ready != null) " pronta" else " in scaricamento") + ": si installa da sola quando il cliente esce dall'app" else when { App.top is PlayerActivity -> "versione " + u.ver + ": proposta a fine visione"; ready != null -> "versione " + u.ver + " pronta: proposta al cliente"; else -> "versione " + u.ver + " in scaricamento" })
             } finally { checking.set(false) }
         }
     }
@@ -182,6 +208,7 @@ object Updater {
                 // il cliente aveva già premuto «Aggiorna ora»: si installa subito (mai sopra la visione: lì si propone al ritorno)
                 if (installWhenReady && a != null && a !is PlayerActivity && !a.isFinishing) { installWhenReady = false; install(a, out) }
                 else { askedCode = 0; offer(a) }
+                if (App.started == 0) onBackground() // scaricata con l'app in background: si installa da sola (Android 12+)
             }
         } catch (_: Paused) {
             try { fileFor(u).delete() } catch (_: Exception) {}
@@ -266,6 +293,7 @@ object Updater {
         }
         val u = pending ?: return
         if (must()) { if (!busy.get()) prompt(a, u); return }
+        if (quietWay(u)) return // Android 12+: si installa da sola quando il cliente esce dall'app
         if (busy.get()) return
         // già proposta in questa apertura: si ripete solo se la finestra è andata persa senza risposta (schermata chiusa sotto di lei)
         if (askedCode == u.code && (answered || stillShown())) return
@@ -326,7 +354,7 @@ object Updater {
             try { lock?.dismiss() } catch (_: Exception) {}
             val d = AlertDialog.Builder(a)
                 .setTitle("Aggiornamento ${u.ver} necessario")
-                .setMessage("Per continuare a usare ${a.getString(R.string.app_name)} va installata la versione nuova: è già scaricata e verificata. Premi Installa e conferma nella schermata di Android, ci vuole meno di un minuto.")
+                .setMessage("Per continuare a usare ${a.getString(R.string.app_name)} va installata la versione nuova: è già scaricata e verificata. Premi Installa e conferma nella schermata di Android, ci vuole meno di un minuto." + Quiet.hint(Store.quietFailCode, Store.quietFailSt, u.code, Build.MANUFACTURER ?: ""))
                 .setCancelable(false)
                 .setPositiveButton("Installa ora", null)
                 .setNegativeButton("Chiudi l'app") { _, _ -> a.finishAffinity() }
@@ -339,7 +367,7 @@ object Updater {
             return
         }
         if (r != null && r.exists()) {
-            proposal(a, "Aggiornamento ${u.ver} pronto", "La versione nuova di ${a.getString(R.string.app_name)} è già scaricata e verificata: premi Installa e conferma nella schermata di Android. Ci vuole meno di un minuto.", "Installa ora") {
+            proposal(a, "Aggiornamento ${u.ver} pronto", "La versione nuova di ${a.getString(R.string.app_name)} è già scaricata e verificata: premi Installa e conferma nella schermata di Android. Ci vuole meno di un minuto." + Quiet.hint(Store.quietFailCode, Store.quietFailSt, u.code, Build.MANUFACTURER ?: ""), "Installa ora") {
                 install(a, r)
             }
         } else {

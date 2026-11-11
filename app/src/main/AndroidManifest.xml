@@ -7,6 +7,8 @@
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <!-- aggiornamento automatico dell'app -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Android 12+: aggiornamento di se stessa senza conferma (vedi Quiet.kt) -->
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
 
     <!-- TV (Fire TV, Android TV, Google TV) e telefoni/tablet -->
     <uses-feature android:name="android.software.leanback" android:required="false" />
@@ -72,5 +74,7 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+        <!-- esito dell'aggiornamento senza conferma -->
+        <receiver android:name=".QuietDone" android:exported="false" />
     </application>
 </manifest>
