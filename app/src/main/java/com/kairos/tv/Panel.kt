@@ -218,6 +218,7 @@ object Panel {
             .put("ver", ver).put("ui", "").put("model", model).put("screen", screen.take(20))
             .put("net", JSONObject().put("type", Net.type()).apply { if (Net.type() == "wifi") Net.rssi().takeIf { it != 0 }?.let { put("rssi", it) } })
             .put("vpn", if (vpnOn) "on" else "off")
+            .put("sdns", if (Remote.sdns) (if (vpnOn) "vpn" else DnsShield.state) else "") // DNS cifrato: on, asking, denied, error, other, off; vpn = già nel tunnel
             .put("vis", vis)
         // diagnostica in «Online ora»: codec, decodifica, blocchi, fotogrammi persi, qualità ridotta
         if (stats != null) b.put("stats", stats)

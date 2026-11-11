@@ -78,6 +78,10 @@ class SettingsActivity : BaseActivity() {
             val cur = K.active().firstOrNull()
             row(R.drawable.ic_layers, "Playlist", "Scegli quale lista usare", cur?.name ?: "") { choosePl() }
         }
+        // DNS cifrato: lo decide il fornitore dal pannello; qui si vede lo stato e, se non è partito, si riprova
+        if (Remote.sdns) row(R.drawable.ic_shield, "DNS cifrato", "Scelto dal tuo fornitore", if (KxVpn.state == "on") "Protetto dalla VPN" else DnsShield.message) {
+            if (DnsShield.state != "on" && KxVpn.state != "on") { DnsShield.retry(); Vpns.apply(this); App.main.postDelayed({ if (!isFinishing) build() }, 1500) }
+        }
         if (s.vpnMode != "off" && s.vpnConf.isNotEmpty()) {
             if (s.vpnMode == "force") row(R.drawable.ic_shield, "VPN", KxVpn.message.ifEmpty { "Attivata dal tuo fornitore" }, "Sempre attiva", null)
             else if (s.perm("vpn")) row(R.drawable.ic_shield, "VPN", KxVpn.message.ifEmpty { "Protegge la connessione dell'app" }, if (Store.vpnUser) "Attiva" else "Spenta") {

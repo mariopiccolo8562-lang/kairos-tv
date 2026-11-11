@@ -136,6 +136,8 @@ object Vpns {
 
     fun apply(a: Activity?) {
         val conf = wanted()
+        // DNS cifrato: solo senza la VPN del fornitore (con la VPN il DNS passa già nel tunnel)
+        DnsShield.sync(a, conf != null)
         if (conf == null) {
             if (KxVpn.active() || KxVpn.state == "on") KxVpn.stop()
             current = null
