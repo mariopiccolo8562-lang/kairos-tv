@@ -33,6 +33,8 @@ object Remote {
     val lite: String? get() = str("lite")?.takeIf { it == "auto" || it == "on" || it == "max" || it == "off" }
     /** anteprima canali imposta dal pannello (click | off) */
     val preview: String? get() = str("preview")?.takeIf { it == "click" || it == "off" }
+    /** DNS cifrato deciso dal pannello (voce «sdns»: on | off). Vuoto = spento: non è una scelta del cliente (vedi [DnsShield]) */
+    val sdns: Boolean get() = str("sdns") == "on"
     /** aggiornamento in background imposto dal pannello (on | off) */
     val bgUpdate: Boolean? get() = str("bgupd")?.let { if (it == "on") true else if (it == "off") false else null }
     /** aggiornamento obbligatorio deciso dal pannello: giorni di grazia dal primo avviso, null = il cliente può rimandare */

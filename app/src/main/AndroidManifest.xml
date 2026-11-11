@@ -76,5 +76,14 @@
         </provider>
         <!-- esito dell'aggiornamento senza conferma -->
         <receiver android:name=".QuietDone" android:exported="false" />
+        <!-- DNS cifrato: interfaccia locale di Android che vale solo per questa app e solo per le domande DNS (DnsShield.kt) -->
+        <service
+            android:name=".DnsShieldService"
+            android:exported="false"
+            android:permission="android.permission.BIND_VPN_SERVICE">
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>

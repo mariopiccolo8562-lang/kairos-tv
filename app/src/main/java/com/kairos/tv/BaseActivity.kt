@@ -154,6 +154,7 @@ abstract class BaseActivity : Activity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == Vpns.REQ) Vpns.onConsent(resultCode == RESULT_OK)
+        if (requestCode == DnsShield.REQ) DnsShield.onConsent(resultCode == RESULT_OK)
     }
 
     override fun finish() {
