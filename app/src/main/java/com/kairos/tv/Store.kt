@@ -188,6 +188,13 @@ object Store {
     /** server di una playlist M3U al momento del caricamento: se il pannello cambia DNS si sostituisce al volo */
     fun plOrigin(id: String): String = s("plo_$id")
     fun setPlOrigin(id: String, o: String) = put("plo_$id", o)
+    fun portalChoice(id: String): String = s("ptl_$id")
+    fun setPortalChoice(id: String, origin: String) = put("ptl_$id", origin)
+    fun portalProbeAt(id: String): Long = s("ptlt_$id").toLongOrNull() ?: 0L
+    fun setPortalProbeAt(id: String, at: Long) = put("ptlt_$id", at.toString())
+    private fun portalKey(origin: String) = origin.trim().replace(Regex("^https?://", RegexOption.IGNORE_CASE), "").trimEnd('/').lowercase()
+    fun portalBadUntil(origin: String): Long = s("ptlbad_${portalKey(origin)}").toLongOrNull() ?: 0L
+    fun setPortalBadUntil(origin: String, until: Long) = put("ptlbad_${portalKey(origin)}", until.toString())
 
     private fun prof(): String = profileId.ifEmpty { "_" }
 

@@ -88,6 +88,8 @@ object Sync {
         val errors = ArrayList<String>()
         try {
             Vpns.awaitForced() // VPN «sempre attiva»: le liste passano dalla VPN
+            val active = K.active()
+            if (App.top !is PlayerActivity && active.map { it.id } == pls.map { it.id }) Portals.probe(active)
             val db = Db.w
             // playlist tolte dal pannello (o di un altro profilo): via dall'archivio
             val keep = pls.map { it.id }

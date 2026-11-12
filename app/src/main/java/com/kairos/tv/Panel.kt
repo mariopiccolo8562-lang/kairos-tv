@@ -14,18 +14,20 @@ import java.net.URLEncoder
 class Playlist(
     val id: String, val name: String, val type: String, val url: String,
     val host: String, val user: String, val pass: String, val tag: String,
+    val alts: List<String> = emptyList(), val altNames: List<String> = emptyList(),
+    val mainName: String = "", val mode: String = "auto",
 ) {
     val isXtream: Boolean get() = type == "xtream" && host.isNotEmpty() && user.isNotEmpty()
 
     /** server Xtream (anche ricavato da un link M3U get.php?username=…&password=…): guida TV e schede */
     val xt: Triple<String, String, String>? by lazy {
-        if (isXtream) Triple(fixUrl(host).trimEnd('/'), user, pass)
+        if (isXtream) Triple(Portals.host(this), user, pass)
         else try {
             val u = URL(fixUrl(url))
             val q = query(u.query ?: "")
             val us = q["username"]
             val pw = q["password"]
-            if (!us.isNullOrEmpty() && !pw.isNullOrEmpty() && u.path.endsWith(".php", ignoreCase = true)) Triple(origin(u), us, pw) else null
+            if (!us.isNullOrEmpty() && !pw.isNullOrEmpty() && u.path.endsWith(".php", ignoreCase = true)) Triple(Portals.host(this), us, pw) else null
         } catch (_: Exception) { null }
     }
 
@@ -38,7 +40,7 @@ class Playlist(
     fun movieUrl(sid: String, ext: String): String? = xt?.let { "${it.first}/movie/${enc(it.second)}/${enc(it.third)}/$sid.${ext.ifEmpty { "mp4" }}" }
     fun episodeUrl(id: String, ext: String): String? = xt?.let { "${it.first}/series/${enc(it.second)}/${enc(it.third)}/$id.${ext.ifEmpty { "mp4" }}" }
 
-    fun origin(): String = try { origin(URL(fixUrl(if (isXtream) host else url))) } catch (_: Exception) { "" }
+    fun origin(): String = Portals.host(this)
 
     /** firma senza il server: se il pannello cambia DNS la lista non si ricarica da capo */
     fun sig(): String = id + "|" + type + "|" + user + "|" + pass + "|" + (if (isXtream) "" else pathOf(url))
@@ -51,10 +53,18 @@ class Playlist(
     }
 
     companion object {
-        fun from(o: JSONObject) = Playlist(
-            o.optString("id"), o.optString("name"), o.optString("type"), o.optString("url"),
-            o.optString("host"), o.optString("username"), o.optString("password"), o.optString("tag"),
-        )
+        fun from(o: JSONObject): Playlist {
+            fun strings(key: String): List<String> {
+                val a = o.optJSONArray(key) ?: return emptyList()
+                return (0 until a.length()).mapNotNull { i -> a.optString(i).takeIf { it.isNotEmpty() && it != "null" } }
+            }
+            return Playlist(
+                o.optString("id"), o.optString("name"), o.optString("type"), o.optString("url"),
+                o.optString("host"), o.optString("username"), o.optString("password"), o.optString("tag"),
+                strings("alts"), strings("altNames"), o.optString("mainName"),
+                o.optString("mode").takeIf { it in listOf("auto", "main", "alt", "rot") } ?: "auto",
+            )
+        }
         fun enc(s: String): String = URLEncoder.encode(s, "UTF-8").replace("+", "%20")
         fun fixUrl(u: String): String {
             val t = u.trim()
