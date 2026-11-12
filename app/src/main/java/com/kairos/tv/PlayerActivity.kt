@@ -751,12 +751,12 @@ class PlayerActivity : BaseActivity() {
         // canale partito già ridotto per la connessione e che si blocca ancora: dritto alla versione ancora più leggera
         if (fresh && kind == "stall" && reduced && reducedByLine && switchLighter(byLine = true)) { lastAction = "versione più leggera"; fixAt = now; return }
         val ladder = if (live) when (problem) {
-            "freeze" -> if (Line.device() == "D" || problemErr == "immagine a scatti") listOf("reload", "lighter", "alt", "soft") else listOf("reload", "soft", "alt", "lighter")
-            "stall" -> if (longStall) listOf("reload", "alt", "lighter") else listOf("lighter", "alt", "cushion")
-            else -> listOf("reload", "alt", "soft", "lighter")
+            "freeze" -> if (Line.device() == "D" || problemErr == "immagine a scatti") listOf("reload", "lighter", "alt", "server", "soft") else listOf("reload", "soft", "alt", "server", "lighter")
+            "stall" -> if (longStall) listOf("reload", "alt", "server", "lighter") else listOf("lighter", "alt", "server", "cushion")
+            else -> listOf("reload", "alt", "server", "soft", "lighter")
         } else when (problem) {
-            "stall" -> if (longStall) listOf("reload", "reload") else listOf("cushion", "cushion")
-            else -> listOf("reload", "soft")
+            "stall" -> if (longStall) listOf("reload", "server", "reload") else listOf("cushion", "server", "cushion")
+            else -> listOf("reload", "server", "soft")
         }
         // stesso problema tornato dopo l'ultima soluzione possibile: si ricomincia (una volta) dal primo passo
         if (fresh && step >= ladder.size) step = 0
@@ -809,6 +809,22 @@ class PlayerActivity : BaseActivity() {
             urlIdx = (urlIdx + 1) % urls.size
             startUrl()
             true
+        }
+        "server" -> {
+            val r = baseRow ?: row ?: return false
+            val playlist = K.pl(r.s("pl")) ?: return false
+            val oldOrigin = playlist.origin()
+            val switched = if (oldOrigin.isNotEmpty() && (live || vodUrl.startsWith(oldOrigin))) Portals.next(playlist) else null
+            if (switched == null) false else {
+                if (live) {
+                    urls = Play.liveUrls(r)
+                    urlIdx = urlIdx.coerceIn(0, (urls.size - 1).coerceAtLeast(0))
+                } else vodUrl = switched.second + vodUrl.substring(switched.first.length)
+                lastAction = "server di riserva"
+                notice("Passo a un altro server…")
+                startUrl(if (live) null else player?.currentPosition)
+                true
+            }
         }
         "lighter" -> if (switchLighter(byLine = problem == "stall")) { lastAction = "versione più leggera"; true } else capHls()
         // cuscinetto un gradino più largo per il resto del canale (+2 s per gradino, fino a +6 s)

@@ -159,6 +159,8 @@ object Pulse {
 
     private fun handle(j: JSONObject) {
         Remote.onBeat(j) // controllo remoto: impostazioni imposte e comandi
+        val sat = j.optJSONArray("sat")
+        if (sat != null) for (i in 0 until sat.length()) Portals.markBad(sat.optString(i), 30 * 60_000L)
         val kick = j.optLong("kick", 0)
         if (kick > 0) {
             kickAck = kick
