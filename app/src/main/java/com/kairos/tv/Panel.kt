@@ -20,8 +20,8 @@ class Playlist(
     val isXtream: Boolean get() = type == "xtream" && host.isNotEmpty() && user.isNotEmpty()
 
     /** server Xtream (anche ricavato da un link M3U get.php?username=…&password=…): guida TV e schede */
-    val xt: Triple<String, String, String>? by lazy {
-        if (isXtream) Triple(Portals.host(this), user, pass)
+    val xt: Triple<String, String, String>?
+        get() = if (isXtream) Triple(Portals.host(this), user, pass)
         else try {
             val u = URL(fixUrl(url))
             val q = query(u.query ?: "")
@@ -29,7 +29,6 @@ class Playlist(
             val pw = q["password"]
             if (!us.isNullOrEmpty() && !pw.isNullOrEmpty() && u.path.endsWith(".php", ignoreCase = true)) Triple(Portals.host(this), us, pw) else null
         } catch (_: Exception) { null }
-    }
 
     fun api(action: String, extra: String = ""): String? {
         val x = xt ?: return null
