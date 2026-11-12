@@ -121,6 +121,11 @@ class State(
     val maintMsg: String = "",
     /** impronta dell'account dal pannello: se nel battito arriva diversa, profili e PIN sono cambiati e si rilegge lo stato */
     val af: String = "",
+    /**
+     * Scudo VPN da mostrare comunque (dal pannello, voce «shield»): la VPN la gestisce il fornitore, anche quando è spenta o il
+     * cliente non può toccarla. Al tocco l'app dice «VPN gestita dal fornitore». Assente = pannello che non la manda.
+     */
+    val vpnShield: Boolean = false,
 ) {
     val active: Boolean get() = status == "active"
     fun perm(k: String): Boolean = perms?.optBoolean(k, true) ?: true
@@ -149,6 +154,7 @@ class State(
                 j.optJSONObject("perms"),
                 j.optString("maintMsg"),
                 j.optString("af"),
+                vpnShield = vpn?.optBoolean("shield") == true,
             )
         }
         fun locked() = State("locked", "", "", JSONObject(), emptyList(), emptyList(), null, "off", "", null)
@@ -201,7 +207,7 @@ object Panel {
         // nella copia salvata resta solo la modalità VPN, mai la configurazione (solo in memoria)
         val cache = JSONObject(j.toString())
         cache.remove("vpn")
-        cache.put("vpn", JSONObject().put("mode", s.vpnMode))
+        cache.put("vpn", JSONObject().put("mode", s.vpnMode).put("shield", s.vpnShield))
         // manutenzione: resta l'ultimo stato buono, l'abbonamento non è cambiato
         if (s.status != "maintenance") Store.stateJson = if (s.active) cache.toString() else ""
         state = s

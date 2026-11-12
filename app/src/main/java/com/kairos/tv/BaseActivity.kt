@@ -37,19 +37,21 @@ abstract class BaseActivity : Activity() {
         val ok = s != null && s.active && s.vpnConf.isNotEmpty()
         val can = ok && s!!.vpnMode == "allow" && s.perm("vpn")
         val forced = ok && s!!.vpnMode == "force"
-        if (!can && !forced) { v.visibility = View.GONE; return }
+        // la VPN la gestisce il fornitore (sempre attiva, consentita senza permesso, spenta): lo scudo c'è lo stesso e si può
+        // premere, per leggere «VPN gestita dal fornitore» (voce «shield» del pannello)
+        val managed = s != null && s.active && s.vpnShield
+        if (!can && !forced && !managed) { v.visibility = View.GONE; return }
         v.visibility = View.VISIBLE
-        v.isFocusable = can; v.isClickable = can
+        v.isFocusable = true; v.isClickable = true
         val st = KxVpn.state
         val on = st == "on" || (forced && KxVpn.active())
         v.imageTintList = android.content.res.ColorStateList.valueOf(if (on) 0xFF2EE59D.toInt() else if (st == "connecting") 0xFFF5B041.toInt() else 0xCCFFFFFF.toInt())
         v.alpha = if (on || st == "connecting") 1f else 0.7f
-        v.contentDescription = if (forced) "VPN sempre attiva" else if (on) "VPN attiva: premi per spegnerla" else "VPN spenta: premi per accenderla"
+        v.contentDescription = if (!can) "VPN gestita dal fornitore" else if (on) "VPN attiva: premi per spegnerla" else "VPN spenta: premi per accenderla"
     }
     private fun vpnToggle() {
         val s = Panel.state ?: return
-        if (s.vpnMode == "force") { Ui.toast("La VPN è sempre attiva: lo ha deciso il tuo fornitore"); return }
-        if (!s.perm("vpn")) { Ui.toast("La VPN è gestita dal tuo fornitore"); return }
+        if (!(s.active && s.vpnConf.isNotEmpty() && s.vpnMode == "allow" && s.perm("vpn"))) { Ui.toast("VPN gestita dal fornitore"); return }
         Store.vpnUser = !Store.vpnUser
         if (Store.vpnUser) Vpns.retry()
         Ui.toast(if (Store.vpnUser) "Attivo la VPN…" else "VPN spenta")
