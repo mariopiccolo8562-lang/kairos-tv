@@ -213,6 +213,9 @@ class VodActivity : BaseActivity() {
                     else -> false
                 }
             }
+            // titolo lungo: sul film dove sei scorre per intero (prima restava tagliato con «…»)
+            val focusBefore = h.itemView.onFocusChangeListener
+            h.itemView.setOnFocusChangeListener { v, has -> h.title.isSelected = has; focusBefore?.onFocusChange(v, has) }
             Ui.zoom(h.itemView, 1.06f)
             return h
         }

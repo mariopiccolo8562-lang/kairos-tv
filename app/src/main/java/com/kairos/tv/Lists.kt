@@ -130,6 +130,8 @@ class CatAdapter(private val onFocus: (Db.Cat, Int) -> Unit, private val onClick
     override fun onCreateViewHolder(p: ViewGroup, t: Int): H {
         val h = H(LayoutInflater.from(p.context).inflate(R.layout.item_cat, p, false))
         h.itemView.setOnFocusChangeListener { _, has ->
+            // nome lungo: sulla categoria dove sei scorre per intero (prima restava tagliato con «…»)
+            h.name.isSelected = has
             val i = h.bindingAdapterPosition
             if (has && i >= 0 && i < items.size) onFocus(items[i], i)
         }
@@ -148,6 +150,7 @@ class CatAdapter(private val onFocus: (Db.Cat, Int) -> Unit, private val onClick
     override fun onBindViewHolder(h: H, i: Int) {
         val c = items[i]
         h.name.text = c.name
+        h.name.isSelected = h.itemView.isFocused
         h.count.text = if (c.count >= 0) Ui.num(c.count) else ""
         h.itemView.isActivated = i == selected
     }

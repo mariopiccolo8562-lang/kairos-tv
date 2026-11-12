@@ -13,7 +13,7 @@
     <dimen name="text_s">13sp</dimen>
     <dimen name="row_h">54dp</dimen>
     <dimen name="cat_h">42dp</dimen>
-    <dimen name="cat_w">190dp</dimen>
+    <dimen name="cat_w">240dp</dimen>
     <dimen name="preview_w">350dp</dimen>
     <dimen name="preview_h">197dp</dimen>
     <dimen name="poster_w">112dp</dimen>
