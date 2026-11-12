@@ -64,6 +64,13 @@
             android:launchMode="singleTop"
             android:screenOrientation="sensorLandscape"
             android:theme="@style/PlayerTheme" />
+        <activity
+            android:name=".TrailerActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode"
+            android:exported="false"
+            android:process=":trailer"
+            android:screenOrientation="sensorLandscape"
+            android:theme="@style/PlayerTheme" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

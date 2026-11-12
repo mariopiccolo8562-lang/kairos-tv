@@ -276,11 +276,12 @@ class LiveActivity : BaseActivity() {
         next.visibility = View.GONE
         val p = K.pl(r.s("pl"))
         val sid = r.s("sid")
-        if (p?.xt == null || sid.isEmpty()) { nowDesc.text = "Guida TV non disponibile per questo canale."; return }
+        // senza server Xtream resta la guida XMLTV (se è stata letta): si riconosce il canale dall'id della guida o dal nome
+        if ((p?.xt == null || sid.isEmpty()) && Store.epgBuiltAt <= 0L) { nowDesc.text = "Guida TV non disponibile per questo canale."; return }
         val pos = curPos
         net {
             if (curRow !== r) return@net // già passati a un altro canale
-            val list = Epg.get(p, sid, 4)
+            val list = Epg.get(p, sid, 4, r.s("epg"), r.s("name"))
             ui {
                 if (curRow !== r || isFinishing) return@ui
                 showEpg(list)
@@ -428,7 +429,7 @@ class LiveActivity : BaseActivity() {
         val p = K.pl(r.s("pl"))
         val sid = r.s("sid")
         net {
-            val list = Epg.get(p, sid, 20)
+            val list = Epg.get(p, sid, 20, r.s("epg"), r.s("name"))
             ui {
                 if (list.isEmpty()) { Ui.toast("Guida TV non disponibile per questo canale"); return@ui }
                 val text = list.joinToString("\n") { Ui.hm(it.start) + "   " + it.title }
@@ -477,7 +478,7 @@ class LiveActivity : BaseActivity() {
             val k = c.getString(1) ?: ""
             h.fav.visibility = if (favSet.contains(k)) View.VISIBLE else View.GONE
             val p = K.pl(c.getString(2) ?: "")
-            val now = Epg.cached(p, c.getString(7) ?: "", 4)?.firstOrNull()
+            val now = Epg.cached(p, c.getString(7) ?: "", 4, c.getString(9) ?: "", name)?.firstOrNull()
             if (now != null) {
                 h.now.visibility = View.VISIBLE
                 h.now.text = now.title

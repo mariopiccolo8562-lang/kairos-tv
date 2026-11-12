@@ -54,6 +54,7 @@ object Sync {
         if (pls.isEmpty()) return
         if (!force && cooling()) return
         if (force || stale(pls)) { begin(pls); return }
+        Epg.schedule(pls) // liste a posto: si controlla solo se la guida XMLTV è da rileggere (ogni 8 ore)
         // resta da sapere se l'archivio è vuoto: lo si chiede al database fuori dal thread principale
         // (all'apertura dell'app aprire il database costa decine di millisecondi sulle chiavette)
         if (!probing.compareAndSet(false, true)) return
@@ -131,6 +132,7 @@ object Sync {
                 Store.syncSig = sig(pls)
                 Store.syncAt = System.currentTimeMillis()
                 failAt = 0L
+                Epg.syncCompleted(pls) // liste nuove: la guida XMLTV si rilegge in sottofondo (parte quando il caricamento è finito)
             } else failAt = System.currentTimeMillis()
             error = errors.joinToString(" · ")
         } catch (t: Throwable) {

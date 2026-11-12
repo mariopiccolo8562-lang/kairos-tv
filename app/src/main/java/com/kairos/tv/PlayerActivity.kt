@@ -1103,9 +1103,9 @@ class PlayerActivity : BaseActivity() {
     private fun loadEpg(r: Db.Row, my: Int) {
         val p = K.pl(r.s("pl"))
         val sid = r.s("sid")
-        if (p?.xt == null || sid.isEmpty()) return
+        if ((p?.xt == null || sid.isEmpty()) && Store.epgBuiltAt <= 0L) return
         net {
-            val list = Epg.get(p, sid, 3)
+            val list = Epg.get(p, sid, 3, r.s("epg"), r.s("name"))
             ui {
                 if (r.l("_id") != curId) return@ui // stesso canale anche se è cambiata la versione
                 progs = list

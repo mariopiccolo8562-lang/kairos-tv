@@ -72,6 +72,9 @@ dependencies {
     // poche librerie, tutte compatibili con Android 5.1
     implementation("androidx.core:core:1.13.1")
     testImplementation("junit:junit:4.13.2")
+    // JSON e lettore XML veri per le prove della guida XMLTV e dei trailer (nell'app li dà Android)
+    testImplementation("org.json:json:20231013")
+    testImplementation("net.sf.kxml:kxml2:2.3.0")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("androidx.media3:media3-exoplayer:1.4.1")
     implementation("androidx.media3:media3-exoplayer-hls:1.4.1")

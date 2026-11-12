@@ -144,6 +144,15 @@ object Store {
     var syncAt: Long
         get() = p.getLong("syncAt", 0)
         set(v) = p.edit().putLong("syncAt", v).apply()
+
+    // ---------- guida XMLTV: quando è stata letta e da quali fonti; indirizzo esterno messo dal cliente ----------
+    val epgBuiltAt: Long get() = p.getLong("epgBuiltAt", 0L)
+    val epgSourceSig: String get() = s("epgSourceSig")
+    var externalEpgUrl: String
+        get() = s("externalEpgUrl")
+        set(v) = put("externalEpgUrl", v.trim())
+    fun saveEpgBuild(signature: String, at: Long) { p.edit().putString("epgSourceSig", signature).putLong("epgBuiltAt", at).apply() }
+    fun clearEpgBuild() { p.edit().remove("epgSourceSig").remove("epgBuiltAt").apply() }
     var kickSeen: Long
         get() = p.getLong("kickSeen", 0)
         set(v) = p.edit().putLong("kickSeen", v).apply()
