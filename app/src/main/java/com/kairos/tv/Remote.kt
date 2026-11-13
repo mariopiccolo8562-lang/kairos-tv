@@ -29,6 +29,8 @@ object Remote {
         return cache!!
     }
     private fun str(k: String): String? = rc().optString(k, "").ifEmpty { null }
+    /** titoli separatore del fornitore («----NOME----») nascosti in diretta, film e serie (voce «o.sep»: off = si vedono) */
+    val hideSep: Boolean get() = str("o.sep") != "off"
     /** modalità leggera imposta dal pannello (auto | on | max | off), null = decide il cliente */
     val lite: String? get() = str("lite")?.takeIf { it == "auto" || it == "on" || it == "max" || it == "off" }
     /** anteprima canali imposta dal pannello (click | off) */
