@@ -77,7 +77,7 @@ class App : Application() {
      *  (al massimo 24 MB), gli altri 20 MB come prima */
     private fun imageMemory(): Long {
         if (max) return 4L shl 20
-        if (lite) return 6L shl 20
+        if (lite) return if (weak) 4L shl 20 else 6L shl 20 // chiavetta da 1 GB: cache delle immagini più piccola (13 novembre 2026)
         if (weak) {
             val mc = try { (getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).memoryClass.toLong() } catch (_: Exception) { 128L }
             return ((mc shl 20) / 8).coerceIn(4L shl 20, 24L shl 20)

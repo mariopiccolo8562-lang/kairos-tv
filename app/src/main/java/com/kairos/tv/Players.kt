@@ -105,9 +105,9 @@ object Players {
             val b = buf(live, cls)
             DefaultLoadControl.Builder()
                 .setBufferDurationsMs(b.min, b.max, b.start, b.rebuffer)
-                .setTargetBufferBytes(b.mb shl 20)
+                .setTargetBufferBytes((if (App.weak && App.lite) b.mb * 3 / 4 else b.mb).coerceAtLeast(4) shl 20) // 1 GB: memoria all'interfaccia
                 .setPrioritizeTimeOverSizeThresholds(false)
-                .setBackBuffer(b.back, false)
+                .setBackBuffer(if (App.weak && App.lite) 0 else b.back, false)
                 .build()
         }
         val renderers = KxRenderersFactory(ctx)
