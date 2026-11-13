@@ -224,6 +224,7 @@ object Sync {
                 eachObject(p.api("get_live_streams") ?: return, LIVE_KEYS) { o ->
                     val sid = o["stream_id"] ?: return@eachObject
                     val name = (o["name"] ?: "").trim()
+                    if (sepName(name)) return@eachObject
                     val (cat, ad) = catOf(o["category_id"])
                     n++
                     val s = st.live
@@ -238,6 +239,7 @@ object Sync {
             "vod" -> eachObject(p.api("get_vod_streams") ?: return, VOD_KEYS) { o ->
                 val sid = o["stream_id"] ?: return@eachObject
                 val name = (o["name"] ?: "").trim()
+                if (sepName(name)) return@eachObject
                 val (cat, ad) = catOf(o["category_id"])
                 val s = st.vod
                 s.clearBindings()
@@ -250,6 +252,7 @@ object Sync {
             else -> eachObject(p.api("get_series") ?: return, if (App.lite) SERIES_KEYS_LITE else SERIES_KEYS) { o ->
                 val sid = o["series_id"] ?: return@eachObject
                 val name = (o["name"] ?: "").trim()
+                if (sepName(name)) return@eachObject
                 val (cat, ad) = catOf(o["category_id"])
                 val s = st.series
                 s.clearBindings()
@@ -387,6 +390,7 @@ object Sync {
                     }
                     val m = meta ?: continue
                     meta = null
+                    if (sepName(m.name)) continue
                     n++
                     val low = l.lowercase()
                     val key = p.id + ":" + Integer.toHexString(Playlist.pathOf(l).hashCode())
@@ -431,4 +435,15 @@ object Sync {
             c.disconnect()
         }
     }
+}
+
+/* titoli «----NOME----», «##### SPORT #####», «★★★ CINEMA ★★★»: separatori del fornitore, non canali né film né serie
+   (non si aprono: davano «io_bad_http_status») → non si mostrano. Stessa regola di Kairos Pro; «...E giustizia per tutti» resta */
+private val RX_SEP = Regex("""^[\s\-—=#*_~▬═━─•●◆★☆✦|+<>]{3,}|^[\s\-—=#*_~▬═━─•●◆★☆✦|+<>.:]{2,}.*[\-—=#*_~▬═━─•●◆★☆✦|+<>]{2,}\s*$""")
+private val RX_SEP4 = Regex("""[\-—=#▬═━─_*~]{4,}""")
+internal fun sepName(raw: String): Boolean {
+    val n = raw.trim()
+    if (n.isEmpty()) return true
+    if (RX_SEP4.containsMatchIn(n)) return true
+    return RX_SEP.containsMatchIn(n) && n.count { it.isLetterOrDigit() } < n.length * 0.85
 }

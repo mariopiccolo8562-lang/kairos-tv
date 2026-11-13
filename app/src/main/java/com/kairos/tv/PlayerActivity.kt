@@ -523,7 +523,7 @@ class PlayerActivity : BaseActivity() {
         override fun onPlayerError(error: PlaybackException) {
             val p = player ?: return
             val code = error.errorCode
-            val name = error.errorCodeName.removePrefix("ERROR_CODE_").lowercase(Locale.ROOT)
+            val name = error.errorCodeName.removePrefix("ERROR_CODE_").lowercase(Locale.ROOT) + httpSuffix(error)
             if (code == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
                 // rimasti fuori dalla finestra della diretta: si torna al bordo, al massimo 3 volte, poi l'altro formato
                 if (++behindLive <= 3) { seeking = true; p.seekToDefaultPosition(); p.prepare(); return }
@@ -1506,4 +1506,15 @@ class PlayerActivity : BaseActivity() {
         }
         return super.onTouchEvent(event)
     }
+}
+
+/** codice HTTP del server dietro l'errore del lettore (« · HTTP 404»), vuoto se non c'è: nelle segnalazioni
+    si vede subito se è la linea (401/403), il contenuto che non esiste (404) o il server (5xx) */
+internal fun httpSuffix(e: Throwable?): String {
+    var c = e; var n = 0
+    while (c != null && n++ < 8) {
+        if (c is androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException) return " · HTTP ${c.responseCode}"
+        c = c.cause
+    }
+    return ""
 }
