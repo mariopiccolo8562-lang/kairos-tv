@@ -47,6 +47,14 @@
             android:src="@drawable/ic_shield"
             android:visibility="gone" />
         <ImageButton
+            android:id="@+id/dnsBadge"
+            style="@style/IconBtn"
+            android:layout_marginLeft="10dp"
+            android:contentDescription="DNS cifrato"
+            android:padding="9dp"
+            android:src="@drawable/ic_dns_lock"
+            android:visibility="gone" />
+        <ImageButton
             android:id="@+id/search"
             style="@style/IconBtn"
             android:contentDescription="Cerca"

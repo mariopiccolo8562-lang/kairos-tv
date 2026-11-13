@@ -23,6 +23,42 @@ abstract class BaseActivity : Activity() {
         }
     }
     private var shieldView: ImageView? = null
+    private var dnsView: ImageView? = null
+
+    /**
+     * Lucchetto «DNS» accanto allo scudo (13 novembre 2026): c'è quando il fornitore ha acceso il DNS cifrato dal pannello.
+     * Colori e frasi in [DnsBadge]. Al tocco dice lo stato; dopo un rifiuto o un errore riprova.
+     */
+    fun dnsBadge(v: ImageView?) {
+        dnsView = v ?: return
+        v.setOnClickListener { dnsTap() }
+        dnsRefresh()
+    }
+    /** stato del DNS cifrato da mostrare ("" = il fornitore non lo ha acceso: niente lucchetto) */
+    fun dnsState(): String = DnsBadge.state(Remote.sdns && Panel.state?.active == true, KxVpn.state == "on", DnsShield.state)
+    fun dnsRefresh() {
+        onDnsChanged()
+        val v = dnsView ?: return
+        val st = dnsState()
+        if (st.isEmpty()) { v.visibility = View.GONE; return }
+        v.visibility = View.VISIBLE
+        v.isFocusable = true; v.isClickable = true
+        v.imageTintList = android.content.res.ColorStateList.valueOf(DnsBadge.color(st))
+        v.alpha = if (st == "off") 0.7f else 1f
+        v.contentDescription = DnsBadge.text(st)
+    }
+    fun dnsTap() {
+        val st = dnsState()
+        if (st.isEmpty()) return
+        if (!DnsBadge.canRetry(st)) { Ui.toast(DnsBadge.text(st)); return }
+        DnsShield.retry()
+        Vpns.apply(this)
+        Ui.toast(if (st == "denied") "DNS cifrato: riprovo. Conferma la richiesta di Android" else "DNS cifrato: riprovo ad attivarlo…")
+        for (ms in longArrayOf(800, 2_000, 4_000, 8_000)) App.main.postDelayed({ if (!isFinishing) dnsRefresh() }, ms)
+    }
+    /** lo stato del DNS cifrato può essere cambiato: le Home che lo disegnano a modo loro si aggiornano qui */
+    open fun onDnsChanged() {}
+
 
     /** Scudo VPN nella barra in alto. Compare solo se il fornitore lo ha permesso dal pannello: VPN «Consentita» + permesso
      *  «Accendere/spegnere la VPN». Con «Sempre attiva» è un semplice indicatore (acceso, non si tocca); altrimenti è nascosto. */
@@ -32,6 +68,7 @@ abstract class BaseActivity : Activity() {
         shieldRefresh()
     }
     fun shieldRefresh() {
+        dnsRefresh()
         val v = shieldView ?: return
         val s = Panel.state
         val ok = s != null && s.active && s.vpnConf.isNotEmpty()
