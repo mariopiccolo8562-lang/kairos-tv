@@ -153,7 +153,7 @@ object Vpns {
             asked = true
             pending = conf
             KxVpn.waitingConsent()
-            try { a.startActivityForResult(i, REQ) } catch (_: Exception) { asked = false; KxVpn.fail("VPN non disponibile su questo dispositivo") }
+            ConsentIntro.show(a, { a.startActivityForResult(i, REQ) }) { asked = false; KxVpn.fail("VPN non disponibile su questo dispositivo") }
         }
     }
 

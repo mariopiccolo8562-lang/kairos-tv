@@ -72,7 +72,7 @@ object DnsShield {
         if (i == null) start()
         else if (a != null && !asked) {
             asked = true; state = "asking"
-            try { a.startActivityForResult(i, REQ) } catch (_: Exception) { asked = false; state = "error" }
+            ConsentIntro.show(a, { a.startActivityForResult(i, REQ) }) { asked = false; state = "error" }
         }
     }
 
