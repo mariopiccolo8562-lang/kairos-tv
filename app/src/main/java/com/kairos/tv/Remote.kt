@@ -35,6 +35,8 @@ object Remote {
     val preview: String? get() = str("preview")?.takeIf { it == "click" || it == "off" }
     /** DNS cifrato deciso dal pannello (voce «sdns»: on | off). Vuoto = spento: non è una scelta del cliente (vedi [DnsShield]) */
     val sdns: Boolean get() = str("sdns") == "on"
+    /** riga «Di tendenza» nella Home (voce «o.homeArt»: off = spenta; 13 novembre 2026) */
+    val homeArt: Boolean get() = str("o.homeArt") != "off"
     /** aggiornamento in background imposto dal pannello (on | off) */
     val bgUpdate: Boolean? get() = str("bgupd")?.let { if (it == "on") true else if (it == "off") false else null }
     /** aggiornamento obbligatorio deciso dal pannello: giorni di grazia dal primo avviso, null = il cliente può rimandare */

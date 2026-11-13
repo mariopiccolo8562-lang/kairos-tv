@@ -217,6 +217,11 @@ open class BrowseActivity : BaseActivity() {
                 promoted.add(c.id)
                 list.add(catRow(t, c).also { it.clean = clean })
             }
+            // di tendenza questa settimana (classifica del pannello, solo i titoli che la linea ha): vuota = la riga non c'è
+            if (k != "list" && Remote.homeArt) for (t in tables) {
+                list.add(Row("trend$t", if (t == "vod") "Film di tendenza questa settimana" else "Serie TV di tendenza questa settimana", T_POSTERS, t, Db.TREND)
+                    .also { it.skip = hide[t].orEmpty(); it.clean = clean })
+            }
             for (t in tables) {
                 val name = if (t == "vod") "Film" else "Serie TV"
                 if (Store.favs(t).isNotEmpty() || k == "list") list.add(Row("fav$t", if (tables.size > 1) "La mia lista · $name" else "La mia lista", T_POSTERS, t, Db.FAV).also {
@@ -232,8 +237,9 @@ open class BrowseActivity : BaseActivity() {
                     for (c in show) list.add(catRow(t, c).also { it.clean = clean })
                 }
             }
-            // le prime righe arrivano già piene: la schermata compare completa
-            list.filter { it.type == T_POSTERS }.take(3).forEach { r -> val favs = Store.favs(r.table); r.cards = cardsOf(r, pls, kids, favs); r.hint = hintOf(r, favs) }
+            // le prime righe arrivano già piene: la schermata compare completa (non quelle di tendenza: chiedono la classifica
+            // al pannello e la Home non deve aspettare la rete; si riempiono appena si vedono)
+            list.filter { it.type == T_POSTERS && it.cat != Db.TREND }.take(3).forEach { r -> val favs = Store.favs(r.table); r.cards = cardsOf(r, pls, kids, favs); r.hint = hintOf(r, favs) }
             ui {
                 if (isFinishing || my != seq) return@ui
                 hero = h

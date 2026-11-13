@@ -142,6 +142,8 @@ object Db {
     const val ALL = "*all"
     const val FAV = "*fav"
     const val NEW = "*new"
+    /** riga «Di tendenza»: i titoli della classifica della settimana (vedi [Trend]) che la linea ha davvero */
+    const val TREND = "*trend"
 
     private class Q(var where: String, val args: ArrayList<String>)
 
@@ -287,6 +289,7 @@ object Db {
     /** i primi [limit] titoli di una riga: categoria, preferiti o aggiunti di recente ([skip]: categorie da escludere) */
     fun cards(table: String, cat: String, pls: List<String>, kids: Boolean, favs: Set<String>, limit: Int, skip: List<String> = emptyList()): List<Card> {
         if (pls.isEmpty()) return emptyList()
+        if (cat == TREND) return trend(table, pls, kids, limit, skip)
         val q = base(pls, kids)
         var order = "_id"
         when (cat) {
@@ -299,6 +302,33 @@ object Db {
         val out = ArrayList<Card>(limit)
         r.rawQuery("SELECT _id, k, name, img, year, rating, $plot FROM $table WHERE ${q.where} ORDER BY $order LIMIT $limit", q.args.toTypedArray()).use { c ->
             while (c.moveToNext()) out.add(Card(table, c.getLong(0), c.getString(1) ?: "", c.getString(2) ?: "", c.getString(3) ?: "", c.getString(4) ?: "", c.getString(5) ?: "", c.getString(6) ?: ""))
+        }
+        return out
+    }
+
+    /** titoli di tendenza della settimana che la linea ha, nell'ordine della classifica; mai sul thread principale */
+    private fun trend(table: String, pls: List<String>, kids: Boolean, limit: Int, skip: List<String>): List<Card> {
+        val titles = Trend.get()?.let { if (table == "series") it.series else it.movies }.orEmpty()
+        if (titles.isEmpty() || (table != "vod" && table != "series")) return emptyList()
+        val plot = if (table == "series") "plot" else "''"
+        val out = ArrayList<Card>()
+        val seen = HashSet<String>()
+        for ((title, year) in titles) {
+            if (out.size >= limit.coerceAtMost(20) || title.isBlank()) break
+            val q = base(pls, kids)
+            skipCats(q, skip)
+            q.where += " AND name LIKE ? ESCAPE '\\'"
+            q.args.add("%" + title.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%")
+            r.rawQuery("SELECT _id, k, name, img, year, rating, $plot FROM $table WHERE ${q.where} ORDER BY added DESC, _id LIMIT 8", q.args.toTypedArray()).use { c ->
+                while (c.moveToNext()) {
+                    val card = Card(table, c.getLong(0), c.getString(1) ?: "", c.getString(2) ?: "", c.getString(3) ?: "",
+                        c.getString(4) ?: "", c.getString(5) ?: "", c.getString(6) ?: "")
+                    if (TitleMatch.matches(card.name, card.year.toIntOrNull(), title, year) && seen.add(card.k)) {
+                        out.add(card)
+                        break
+                    }
+                }
+            }
         }
         return out
     }
